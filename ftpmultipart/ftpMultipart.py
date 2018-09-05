@@ -3,7 +3,7 @@ from threading import *
 from shutil import *
 import os
 
-num_parts = 20
+FTP_parts = 8
 FTP_server = 'ftp.example.com'
 FTP_user = 'mark'
 FTP_password = 'password'
@@ -22,30 +22,6 @@ def open_ftp():
     ftp.login()
     ftp.cwd(FTP_directory)
     return ftp
-
-
-def go():
-    ftp = open_ftp()
-    filesize = ftp.size(FTP_file)
-    print 'filesize: ' + str(filesize)
-    ftp.quit()
-
-    chunk_size = filesize/num_parts
-    last_chunk_size = filesize - (chunk_size * (num_parts - 1))
-
-    downloaders = []
-    for i in range(num_parts):
-        if i == (num_parts - 1):
-            this_chunk_size = last_chunk_size
-        else:
-            this_chunk_size = chunk_size
-        downloaders.append(Downloader(i, chunk_size * i, this_chunk_size))
-    for downloader in downloaders:
-        downloader.thread.join()
-
-    with open(FTP_file, 'w+b') as f:
-        for downloader in downloaders:
-            copyfileobj(open(downloader.part_name, 'rb'), f)
 
 
 class Downloader:
@@ -78,16 +54,48 @@ class Downloader:
                 f.truncate(self.part_size)
             raise Done
 
-# Main
-if __name__ == '__main__':
-    num_parts = 8
+
+def go(grabber, host, port, login, password, cwd, file):
+    global FTP_parts
+    global FTP_server
+    global FTP_user
+    global FTP_password
+    global FTP_directory
+    global FTP_file
+
 
     # ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/uniref/uniref50/uniref50.fasta.gz
-    FTP_server = 'ftp.uniprot.org'
-    FTP_user = 'anonymous'
-    FTP_password = 'anonymous'
 
-    FTP_directory = '/pub/databases/uniprot/current_release/uniref/uniref50'
-    FTP_file = 'uniref50.fasta.gz'
+    FTP_parts = 8
+    FTP_server = host
+    FTP_user = login
+    FTP_password = password
+    FTP_directory = cwd
+    FTP_file = file
 
+    ftp = open_ftp()
+    filesize = ftp.size(FTP_file)
+    print 'filesize: ' + str(filesize)
+    ftp.quit()
+
+    chunk_size = filesize / FTP_parts
+    last_chunk_size = filesize - (chunk_size * (FTP_parts - 1))
+
+    downloaders = []
+    for i in range(FTP_parts):
+        if i == (FTP_parts - 1):
+            this_chunk_size = last_chunk_size
+        else:
+            this_chunk_size = chunk_size
+        downloaders.append(Downloader(i, chunk_size * i, this_chunk_size, grabber))
+
+    for downloader in downloaders:
+        downloader.thread.join()
+
+    with open(FTP_file, 'w+b') as f:
+        for downloader in downloaders:
+            copyfileobj(open(downloader.part_name, 'rb'), f)
+
+# Main
+if __name__ == '__main__':
     go()
