@@ -134,8 +134,11 @@ if __name__ == "__main__":
     # logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=cfg.logging.level)
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-    obj = PyFTPclient('ftp.uniprot.org', 21, '', '')
-    obj.setCwd('/pub/databases/uniprot/current_release/uniref/uniref50')
-    obj.DownloadFile('uniref50.fasta.gz')
+    # obj = PyFTPclient('ftp.uniprot.org', 21, '', '')
+    # obj.setCwd('/pub/databases/uniprot/current_release/uniref/uniref50')
+    # obj.DownloadFile('uniref50.fasta.gz')
 
-
+    # ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/gi_taxid_nucl.zip
+    obj = PyFTPclient('ftp.ncbi.nlm.nih.gov', 21, '', '')
+    obj.setCwd('/pub/taxonomy')
+    obj.DownloadFile('gi_taxid_nucl.zip')

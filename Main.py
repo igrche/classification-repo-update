@@ -20,6 +20,10 @@ if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
     # withMultipart(withReconnect, 'ftp.uniprot.org', 21, '', '', '/pub/databases/uniprot/current_release/uniref/uniref50', 'uniref50.fasta.gz')
-    withReconnect('ftp.uniprot.org', 21, '', '', '/pub/databases/uniprot/current_release/uniref/uniref50', 'uniref50.fasta.gz')
+
+    # withReconnect('ftp.uniprot.org', 21, '', '', '/pub/databases/uniprot/current_release/uniref/uniref50', 'uniref50.fasta.gz')
+
+    # ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/gi_taxid_nucl.zip
+    withReconnect('ftp.ncbi.nlm.nih.gov', 21, '', '', '/pub/taxonomy', 'gi_taxid_nucl.zip')
 
 
