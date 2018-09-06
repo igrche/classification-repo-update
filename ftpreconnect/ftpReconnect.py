@@ -161,7 +161,7 @@ class PyFTPclient:
                     time.sleep(30)
                     logging.info('reconnect')
 
-
+            self.waiting = True
             mon.set() #stop monitor
             ftp.close()
 
@@ -174,8 +174,7 @@ class PyFTPclient:
             if self.f.tell() > self.dst_filesize:
                 logging.info('Downloaded file size of {0} is {1}.'.format(self.fileName, self.f.tell()))
                 self.f.truncate(self.dst_filesize)
-                self.f.close()
-                logging.info('After trancating the file size is {0}.'.format(os.path.getsize(self.local_filename)))
+                logging.info("\tAfter trancating the file size is {0}.".format(os.path.getsize(self.local_filename)))
 
                 return 1
             else:
