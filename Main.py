@@ -14,6 +14,7 @@ def withMultipart(grabber, host, port, login, password, cwd, file):
 def withReconnect(host, port, login, password, cwd, file):
     obj = FtpReconnect(host, port, login, password)
     obj.setCwd(cwd)
+    obj.setBlockSize(8192 * 32)
     obj.DownloadFile(file)
 
 if __name__ == '__main__':
@@ -21,9 +22,9 @@ if __name__ == '__main__':
 
     # withMultipart(withReconnect, 'ftp.uniprot.org', 21, '', '', '/pub/databases/uniprot/current_release/uniref/uniref50', 'uniref50.fasta.gz')
 
-    # withReconnect('ftp.uniprot.org', 21, '', '', '/pub/databases/uniprot/current_release/uniref/uniref50', 'uniref50.fasta.gz')
+    withReconnect('ftp.uniprot.org', 21, '', '', '/pub/databases/uniprot/current_release/uniref/uniref50', 'uniref50.fasta.gz')
 
     # ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/gi_taxid_nucl.zip
-    withReconnect('ftp.ncbi.nlm.nih.gov', 21, '', '', '/pub/taxonomy', 'gi_taxid_nucl.zip')
+    # withReconnect('ftp.ncbi.nlm.nih.gov', 21, '', '', '/pub/taxonomy', 'gi_taxid_nucl.zip')
 
 

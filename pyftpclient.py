@@ -7,7 +7,6 @@ import ftplib
 import socket
 import time
 import sys
-import os
 
 
 def setInterval(interval, times = -1):
@@ -36,10 +35,6 @@ def setInterval(interval, times = -1):
     return outer_wrap
 
 
-class Done(Exception):
-    pass
-
-
 class PyFTPclient:
     def __init__(self, host, port, login, passwd, monitor_interval = 30):
         self.host = host
@@ -51,38 +46,24 @@ class PyFTPclient:
         self.max_attempts = 15
         self.waiting = True
         self.cwd = "/"
-        self.dst_filesize = 0
-        self.f = None
-        self.local_filename = None
-        self.block_size = 8192
 
-
-    def setBlockSize(self, size=8192):
-        self.block_size = size
 
     def setCwd(self, dir="/"):
         self.cwd = dir
 
-    def on_data(self, data):
-        self.f.write(data)
-        if os.path.getsize(self.local_filename) >= self.dst_filesize:
-            raise Done
 
     def DownloadFile(self, dst_filename, local_filename = None):
         res = ''
         if local_filename is None:
-            self.local_filename = dst_filename
-        else:
-            self.local_filename = local_filename
+            local_filename = dst_filename
 
-        with open(self.local_filename, 'w+b') as f:
-            self.f = f
-            self.ptr = self.f.tell()
+        with open(local_filename, 'w+b') as f:
+            self.ptr = f.tell()
 
             @setInterval(self.monitor_interval)
             def monitor():
                 if not self.waiting:
-                    i = self.f.tell()
+                    i = f.tell()
                     if self.ptr < i:
                         logging.debug("%d  -  %0.1f Kb/s" % (i, (i-self.ptr)/(1024*self.monitor_interval)))
                         self.ptr = i
@@ -99,35 +80,31 @@ class PyFTPclient:
                 # ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
                 ftp.cwd(self.cwd)
 
-
             ftp = ftplib.FTP()
             ftp.set_debuglevel(2)
             ftp.set_pasv(True)
 
             connect()
             ftp.voidcmd('TYPE I')
-            self.dst_filesize = ftp.size(dst_filename)
+            dst_filesize = ftp.size(dst_filename)
 
             mon = monitor()
-            while self.dst_filesize > self.f.tell():
+            while dst_filesize > f.tell():
                 try:
                     connect()
                     self.waiting = False
                     # retrieve file from position where we were disconnected
-                    res = ftp.retrbinary('RETR %s' % dst_filename, self.on_data, blocksize=self.block_size) if self.f.tell() == 0 \
-                        else ftp.retrbinary('RETR %s' % dst_filename, self.on_data, blocksize=self.block_size, rest=self.f.tell())
-
-                except Done:
-                    break
+                    res = ftp.retrbinary('RETR %s' % dst_filename, f.write) if f.tell() == 0 else \
+                              ftp.retrbinary('RETR %s' % dst_filename, f.write, rest=f.tell())
 
                 except:
-                    self.waiting = True
                     self.max_attempts -= 1
                     if self.max_attempts <= 0:
                         mon.set()
                         logging.exception('')
                         logging.info('ERROR: ftp RETR error')
                         raise
+                    self.waiting = True
                     logging.info('waiting 30 sec...')
                     time.sleep(30)
                     logging.info('reconnect')
@@ -138,10 +115,8 @@ class PyFTPclient:
 
             if not res.startswith('226 Transfer complete'):
                 logging.error('Downloaded file {0} is not full.'.format(dst_filename))
-                # os.remove(self.local_filename)
+                # os.remove(local_filename)
                 return None
-
-
 
             return 1
 
