@@ -62,6 +62,7 @@ class PyFTPclient:
         logging.basicConfig(stream=sys.stdout, level=logging_level)
 
         self.logging_level=logging_level
+        self.ftp = None
         self.host = host
         self.port = port
         self.login = login
@@ -124,17 +125,29 @@ class PyFTPclient:
         self.thread.start()
         return self.thread
 
-    def connect(self, ftp):
+    def disconnect(self, message):
+        try:
+            self.ftp.quit()
+        except Exception, e:
+            logging.critical("---- {1}: disconnect: self.ftp.quit() exception: {0}".format(e.message, message))
+        self.ftp = None
+
+    def connect(self, message):
+        logging.critical('{0}: try to connect'.format(message))
+        self.ftp = ftplib.FTP()
+        try_count = 16
         i = 0
-        while i < 12:
+        while i < try_count:
             try:
-                ftp.connect(self.host, self.port)
-                ftp.login(self.login, self.passwd)
+                self.ftp.connect(self.host, self.port, timeout=15)
+                self.ftp.set_debuglevel(2 if self.logging_level == logging.DEBUG
+                                   else 1 if self.logging_level == logging.INFO
+                                   else 0)
+                self.ftp.login(self.login, self.passwd)
                 # optimize socket params for download task
-                ftp.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                # ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 75)
-                # ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
-                ftp.cwd(self.cwd)
+                self.ftp.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                # self.ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 75)
+                # self.ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
                 break
             except Exception, e:
                 if e.message == '421 There are too many connections from your internet address.' or \
@@ -144,12 +157,12 @@ class PyFTPclient:
                     sleep_time = PyFTPclient.wait_for_free_socket_timeout \
                                  + (PyFTPclient.wait_for_free_socket_timeout * random.randint(0,21) / 50) \
                                  - PyFTPclient.wait_for_free_socket_timeout / 5
-                    logging.error('Waiting free sockets for {0} sec...'.format(sleep_time))
+                    logging.critical('{1}: Waiting free sockets for {0} sec ({2} out of {3})...'.format(sleep_time, message, i, try_count))
                     time.sleep(sleep_time)
                     i = i + 1
                     self.wait_for_free_socket = False
                 else:
-                    logging.error('Failed to get file size from ftp: '+ str(e))
+                    logging.error('{1}: Failed to connect + login + cwd: {0}'.format(e.message, message))
                     raise
 
     def downloadFile(self):
@@ -163,89 +176,81 @@ class PyFTPclient:
 
             @setInterval(self.monitor_interval)
             def monitor():
-                if self.wait_for_free_socket:
-                    pass
-                elif not self.waiting:
-                    i = self.f.tell()
-                    if self.ptr < i:
-                        speed = (i - self.ptr)/(1024 * self.monitor_interval)
-                        logging.debug("%d  -  %0.1f Kb/s" % (i, speed))
-                        self.ptr = i
-                        self.update_ave_speed(speed * 1024)
-
+                if not self.waiting:
+                    if self.wait_for_free_socket:
+                        logging.critical("---- monitor: wait for free socket")
+                        pass
                     else:
-                        ftp.close()
+                        i = self.f.tell()
+                        if self.ptr < i:
+                            speed = (i - self.ptr)/(1024 * self.monitor_interval)
+                            logging.debug("%d  -  %0.1f Kb/s" % (i, speed))
+                            self.ptr = i
+                            self.update_ave_speed(speed * 1024)
+
+                        else:
+                            self.disconnect('monitor')
 
 
-
-            ftp = ftplib.FTP()
-            ftp.set_debuglevel(2 if self.logging_level == logging.DEBUG
-                               else 1 if self.logging_level == logging.INFO
-                               else 0)
-            ftp.set_pasv(True)
-
-            self.connect(ftp)
-            ftp.voidcmd('TYPE I')
+            self.waiting = True
             if self.chunkSize == -1:
-                self.dst_filesize = ftp.size(self.fileName)
+                self.dst_filesize = self.getFileSize()
             else:
                 self.dst_filesize = self.chunkSize
+
+            self.ftp = ftplib.FTP()
 
             mon = monitor()
             while self.dst_filesize > self.f.tell():
                 try:
-                    self.connect(ftp)
+                    self.connect('downloadFile (loop)')
+                    self.ftp.cwd(self.cwd)
+                    self.ftp.set_pasv(True)
+                    self.ftp.voidcmd('TYPE I')
                     self.waiting = False
-                    # retrieve file from position where we were disconnected
-                    res = ftp.retrbinary('RETR %s' % self.fileName, self.on_data, blocksize=self.block_size, rest=self.chunkStart) if self.f.tell() == 0 \
-                        else ftp.retrbinary('RETR %s' % self.fileName, self.on_data, blocksize=self.block_size, rest=self.chunkStart + self.f.tell())
+                    self.wait_for_free_socket = False
+                    res = self.ftp.retrbinary('RETR %s' % self.fileName, self.on_data, blocksize=self.block_size, rest=self.chunkStart + self.f.tell())
 
                 except Done:
+                    self.waiting = True
                     break
 
-                except:
+                except Exception, e:
                     self.waiting = True
                     self.max_attempts -= 1
                     if self.max_attempts <= 0:
                         mon.set()
                         logging.exception('')
-                        logging.error('ERROR: ftp RETR error')
                         raise
 
-                    logging.info('waiting {0} sec...'.format(self.monitor_interval))
+                    logging.critical('{1}: ERROR: self.ftp RETR error: {0}'.format(e.message, 'downloadFile (loop)'))
+                    logging.critical('{1}: waiting {0} sec...'.format(self.monitor_interval, 'downloadFile (loop)'))
                     time.sleep(self.monitor_interval)
-                    logging.info('reconnect')
 
-            self.waiting = True
             mon.set() #stop monitor
-            ftp.close()
+            self.disconnect('downloadFile')
 
             if not res.startswith('226 Transfer complete'):
                 if not self.f.tell() >= self.dst_filesize:
-                    logging.error('Downloaded file {0} is not full.'.format(self.fileName))
+                    logging.critical('Downloaded file {0} is not full.'.format(self.local_filename))
                     # os.remove(self.local_filename)
                     return None
 
             if self.f.tell() > self.dst_filesize:
-                logging.info('Downloaded file size of {0} is {1}.'.format(self.fileName, self.f.tell()))
+                logging.info('Downloaded file size of {0} is {1}.'.format(self.local_filename, self.f.tell()))
                 self.f.truncate(self.dst_filesize)
                 logging.info("After trancating the file size is {0}.".format(os.path.getsize(self.local_filename)))
 
-                return 1
-            else:
-                return None
+            logging.critical('---------------------- Downloaded file size of {0} is {1}.'.format(self.local_filename, self.f.tell()))
+            return 1
 
     def getFileSize(self):
-        ftp = ftplib.FTP()
-        ftp.set_debuglevel(2 if self.logging_level == logging.DEBUG
-                           else 1 if self.logging_level == logging.INFO
-                           else 0)
-        ftp.set_pasv(True)
-
-        self.connect(ftp)
-        ftp.voidcmd('TYPE I')
-        filesize = ftp.size(self.fileName)
-        ftp.quit()
+        self.connect('getFileSize')
+        self.ftp.cwd(self.cwd)
+        self.ftp.set_pasv(True)
+        self.ftp.voidcmd('TYPE I')
+        filesize = self.ftp.size(self.fileName)
+        self.disconnect('getFileSize')
         return filesize
 
 
@@ -264,13 +269,15 @@ def downloadURL(url, logging_level=logging.ERROR):
 
     obj = PyFTPclient(FTP_host, FTP_port, FTP_login, FTP_password, logging_level=logging_level)
     obj.setCwd(FTP_cwd)
-    obj.setBlockSize(8192 * 32)
+    obj.setBlockSize(8192)
     obj.setFileName(FTP_file)
 
     filesize = obj.getFileSize()
 
-    if filesize < 1000000:
+    if filesize < (10 * 1024 * 1024):
         FTP_parts = 1
+    else:
+        FTP_parts = filesize / (25 * 1024 * 1024) + 1
     chunk_size = filesize / FTP_parts
     last_chunk_size = filesize - (chunk_size * (FTP_parts - 1))
 
@@ -306,5 +313,5 @@ if __name__ == "__main__":
     # logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=cfg.logging.level)
     # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-    downloadURL('ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/gi_taxid_nucl.zip')
+    downloadURL('ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/gi_taxid_nucl.zip', logging.ERROR)
     downloadURL('ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/uniref/uniref50/uniref50.fasta.gz', logging.ERROR)
