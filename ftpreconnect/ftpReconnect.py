@@ -129,11 +129,11 @@ class PyFTPclient:
         try:
             self.ftp.quit()
         except Exception, e:
-            logging.critical("---- {1}: disconnect: self.ftp.quit() exception: {0}".format(e.message, message))
+            logging.debug("---- {1}: disconnect: self.ftp.quit() exception: {0}".format(e.message, message))
         self.ftp = None
 
     def connect(self, message):
-        logging.critical('{0}: try to connect'.format(message))
+        logging.info('{0}: try to connect'.format(message))
         self.ftp = ftplib.FTP()
         try_count = 16
         i = 0
@@ -157,7 +157,7 @@ class PyFTPclient:
                     sleep_time = PyFTPclient.wait_for_free_socket_timeout \
                                  + (PyFTPclient.wait_for_free_socket_timeout * random.randint(0,21) / 50) \
                                  - PyFTPclient.wait_for_free_socket_timeout / 5
-                    logging.critical('{1}: Waiting free sockets for {0} sec ({2} out of {3})...'.format(sleep_time, message, i, try_count))
+                    logging.info('{1}: Waiting free sockets for {0} sec ({2} out of {3})...'.format(sleep_time, message, i, try_count))
                     time.sleep(sleep_time)
                     i = i + 1
                     self.wait_for_free_socket = False
@@ -178,7 +178,7 @@ class PyFTPclient:
             def monitor():
                 if not self.waiting:
                     if self.wait_for_free_socket:
-                        logging.critical("---- monitor: wait for free socket")
+                        logging.info("---- monitor: wait for free socket")
                         pass
                     else:
                         i = self.f.tell()
@@ -223,8 +223,8 @@ class PyFTPclient:
                         logging.exception('')
                         raise
 
-                    logging.critical('{1}: ERROR: self.ftp RETR error: {0}'.format(e.message, 'downloadFile (loop)'))
-                    logging.critical('{1}: waiting {0} sec...'.format(self.monitor_interval, 'downloadFile (loop)'))
+                    logging.debug('{1}: ERROR: self.ftp RETR error: {0}'.format(e.message, 'downloadFile (loop)'))
+                    logging.info('{1}: waiting {0} sec...'.format(self.monitor_interval, 'downloadFile (loop)'))
                     time.sleep(self.monitor_interval)
 
             mon.set() #stop monitor
@@ -241,7 +241,7 @@ class PyFTPclient:
                 self.f.truncate(self.dst_filesize)
                 logging.info("After trancating the file size is {0}.".format(os.path.getsize(self.local_filename)))
 
-            logging.critical('---------------------- Downloaded file size of {0} is {1}.'.format(self.local_filename, self.f.tell()))
+            logging.info('---------------------- Downloaded file size of {0} is {1}.'.format(self.local_filename, self.f.tell()))
             return 1
 
     def getFileSize(self):
@@ -274,10 +274,10 @@ def downloadURL(url, logging_level=logging.ERROR):
 
     filesize = obj.getFileSize()
 
-    if filesize < (10 * 1024 * 1024):
+    if filesize < (25 * 1024 * 1024):
         FTP_parts = 1
     else:
-        FTP_parts = filesize / (25 * 1024 * 1024) + 1
+        FTP_parts = filesize / (100 * 1024 * 1024) + 1
     chunk_size = filesize / FTP_parts
     last_chunk_size = filesize - (chunk_size * (FTP_parts - 1))
 
