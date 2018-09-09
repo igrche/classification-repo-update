@@ -254,7 +254,7 @@ class PyFTPclient:
         return filesize
 
 
-def downloadURL(url, logging_level=logging.ERROR):
+def downloadURL(url, mim_size=26214400, chunk_size=104857600, logging_level=logging.ERROR):
     logging.basicConfig(stream=sys.stdout, level=logging_level)
 
     o = urlparse(url)
@@ -274,10 +274,12 @@ def downloadURL(url, logging_level=logging.ERROR):
 
     filesize = obj.getFileSize()
 
-    if filesize < (25 * 1024 * 1024):
+    if filesize < mim_size:
         FTP_parts = 1
     else:
-        FTP_parts = filesize / (100 * 1024 * 1024) + 1
+        FTP_parts = filesize / chunk_size
+        if FTP_parts < 1:
+            FTP_parts = 1
     chunk_size = filesize / FTP_parts
     last_chunk_size = filesize - (chunk_size * (FTP_parts - 1))
 
@@ -313,5 +315,5 @@ if __name__ == "__main__":
     # logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=cfg.logging.level)
     # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-    downloadURL('ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/gi_taxid_nucl.zip', logging.ERROR)
-    downloadURL('ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/uniref/uniref50/uniref50.fasta.gz', logging.ERROR)
+    downloadURL('ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/gi_taxid_nucl.zip', logging_level=logging.ERROR)
+    downloadURL('ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/uniref/uniref50/uniref50.fasta.gz', logging_level=logging.ERROR)
