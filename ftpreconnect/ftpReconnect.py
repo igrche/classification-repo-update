@@ -294,7 +294,7 @@ def downloadURL(url, mim_size=26214400, chunk_size=104857600, logging_level=logg
         obj.setCwd(FTP_cwd)
         obj.setBlockSize(8192 * 32)
         obj.setFileName(FTP_file)
-        obj.setLocalName(FTP_file + ".part-" + str(i))
+        obj.setLocalName(FTP_file + ".%.3d" % i)
         obj.setChunkStart(chunk_size * i)
         obj.setChunkSize(this_chunk_size)
         obj.downloadFileInThread()
