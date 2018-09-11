@@ -15,7 +15,13 @@ from urlparse import urlparse
 from shutil import copyfileobj
 
 
-def setInterval(interval, times = -1):
+__version_mjaor__ = 0
+__version_minor__ = 0
+__version_micro__ = 1
+__version__ = "%d.%d.%d" % (__version_mjaor__, __version_minor__, __version_micro__)
+
+
+def setInterval(interval, times=-1):
     # This will be the actual decorator,
     # with fixed interval and times parameter
     def outer_wrap(function):
@@ -40,13 +46,16 @@ def setInterval(interval, times = -1):
         return wrap
     return outer_wrap
 
+
 def synchronized(wrapped):
     lock = threading.Lock()
+
     @functools.wraps(wrapped)
     def _wrap(*args, **kwargs):
         with lock:
             return wrapped(*args, **kwargs)
     return _wrap
+
 
 class Done(Exception):
     pass
@@ -58,10 +67,10 @@ class PyFTPclient:
     ave_speed = {'chunks': 0, 'speed': 0, 'last_speed': 0}
     wait_for_free_socket_timeout = 60
 
-    def __init__(self, host, port, login, passwd, monitor_interval = 30, logging_level=logging.ERROR):
+    def __init__(self, host, port, login, passwd, monitor_interval=30, logging_level=logging.ERROR):
         logging.basicConfig(stream=sys.stdout, level=logging_level)
 
-        self.logging_level=logging_level
+        self.logging_level = logging_level
         self.ftp = None
         self.host = host
         self.port = port
@@ -109,7 +118,6 @@ class PyFTPclient:
     def setCwd(self, dir="/"):
         self.cwd = dir
 
-
     def setFileName(self, file):
         self.fileName = file
 
@@ -141,8 +149,7 @@ class PyFTPclient:
             try:
                 self.ftp.connect(self.host, self.port, timeout=15)
                 self.ftp.set_debuglevel(2 if self.logging_level == logging.DEBUG
-                                   else 1 if self.logging_level == logging.INFO
-                                   else 0)
+                                        else 1 if self.logging_level == logging.INFO else 0)
                 self.ftp.login(self.login, self.passwd)
                 # optimize socket params for download task
                 self.ftp.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -155,8 +162,8 @@ class PyFTPclient:
                     self.wait_for_free_socket = True
                     logging.info(e.message)
                     sleep_time = PyFTPclient.wait_for_free_socket_timeout \
-                                 + (PyFTPclient.wait_for_free_socket_timeout * random.randint(0,21) / 50) \
-                                 - PyFTPclient.wait_for_free_socket_timeout / 5
+                            + (PyFTPclient.wait_for_free_socket_timeout * random.randint(0, 21) / 50) \
+                            - PyFTPclient.wait_for_free_socket_timeout / 5
                     logging.info('{1}: Waiting free sockets for {0} sec ({2} out of {3})...'.format(sleep_time, message, i, try_count))
                     time.sleep(sleep_time)
                     i = i + 1
@@ -190,7 +197,6 @@ class PyFTPclient:
 
                         else:
                             self.disconnect('monitor')
-
 
             self.waiting = True
             if self.chunkSize == -1:
@@ -227,7 +233,7 @@ class PyFTPclient:
                     logging.info('{1}: waiting {0} sec...'.format(self.monitor_interval, 'downloadFile (loop)'))
                     time.sleep(self.monitor_interval)
 
-            mon.set() #stop monitor
+            mon.set()   # stop monitor
             self.disconnect('downloadFile')
 
             if not res.startswith('226 Transfer complete'):
@@ -254,7 +260,7 @@ class PyFTPclient:
         return filesize
 
 
-def downloadURL(url, mim_size=26214400, chunk_size=104857600, logging_level=logging.ERROR):
+def ftpDownload(url, dest, mim_size=26214400, chunk_size=104857600, logging_level=logging.ERROR):
     logging.basicConfig(stream=sys.stdout, level=logging_level)
 
     o = urlparse(url)
@@ -294,7 +300,7 @@ def downloadURL(url, mim_size=26214400, chunk_size=104857600, logging_level=logg
         obj.setCwd(FTP_cwd)
         obj.setBlockSize(8192 * 32)
         obj.setFileName(FTP_file)
-        obj.setLocalName(FTP_file + ".%.3d" % i)
+        obj.setLocalName(dest + os.sep + FTP_file + ".%.3d" % i)
         obj.setChunkStart(chunk_size * i)
         obj.setChunkSize(this_chunk_size)
         obj.downloadFileInThread()
@@ -304,16 +310,17 @@ def downloadURL(url, mim_size=26214400, chunk_size=104857600, logging_level=logg
     for downloader in downloaders:
         downloader.thread.join()
 
-    with open(FTP_file, 'w+b') as f:
+    if os.path.isdir(dest):
+        dest = os.path.abspath(dest) + os.path.sep + FTP_file
+    with open(dest, 'w+b') as f:
         for downloader in downloaders:
             copyfileobj(open(downloader.local_filename, 'rb'), f)
+            os.remove(downloader.local_filename)
+    return dest
 
-    return 1
 
 if __name__ == "__main__":
     # logging.basicConfig(filename='/var/log/dreamly.log',format='%(asctime)s %(levelname)s: %(message)s',level=logging.DEBUG)
     # logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=cfg.logging.level)
     # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-
-    downloadURL('ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/gi_taxid_nucl.zip', logging_level=logging.ERROR)
-    downloadURL('ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/uniref/uniref50/uniref50.fasta.gz', logging_level=logging.ERROR)
+    pass

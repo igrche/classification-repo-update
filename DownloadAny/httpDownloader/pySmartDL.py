@@ -16,12 +16,13 @@ from ctypes import c_int
 
 import utils
 
-__all__ = ['SmartDL', 'utils']
+__all__ = ['http_d1_workerownload', 'utils']
 __version_mjaor__ = 1
 __version_minor__ = 2
 __version_micro__ = 5
 __version__ = "%d.%d.%d" % (__version_mjaor__, __version_minor__, __version_micro__)
 DEFAULT_LOGGER_CREATED = False
+
 
 class HashFailedException(Exception):
     "Raised when hash check fails."
@@ -29,50 +30,62 @@ class HashFailedException(Exception):
         self.filename = fn
         self.calculated_hash = calc_hash
         self.needed_hash = needed_hash
+
     def __str__(self):
         return 'HashFailedException(%s, got %s, expected %s)' % (self.filename, self.calculated_hash, self.needed_hash)
+
     def __repr__(self):
         return "<HashFailedException %s, got %s, expected %s>" % (self.filename, self.calculated_hash, self.needed_hash)
         
+
 class CanceledException(Exception):
     "Raised when the job is canceled."
     def __init__(self):
         pass
+
     def __str__(self):
         return 'CanceledException'
+
     def __repr__(self):
         return "<CanceledException>"
 
-class SmartDL:
+
+class http_d1_workerownload:
     '''
     The main SmartDL class
-    
-    :param urls: Download url. It is possible to pass unsafe and unicode characters. You can also pass a list of urls, and those will be used as mirrors.
+
+    :param urls: Download url. It is possible to pass unsafe and unicode characters.
+        You can also pass a list of urls, and those will be used as mirrors.
     :type urls: string or list of strings
-    :param dest: Destination path. Default is `%TEMP%/pySmartDL/`.
+    :param dest: Destination path. Default is `%TEMP%/httpDownloader/`.
     :type dest: string
-    :param progress_bar: If True, prints a progress bar to the `stdout stream <http://docs.python.org/2/library/sys.html#sys.stdout>`_. Default is `True`.
+    :param progress_bar: If True, prints a progress bar to the
+        `stdout stream <http://docs.python.org/2/library/sys.html#sys.stdout>`_. Default is `True`.
     :type progress_bar: bool
-	:param fix_urls: If true, attempts to fix urls with unsafe characters.
-	:type fix_urls: bool
-	:param threads: Number of threads to use.
-	:type threads: int
+    :param fix_urls: If true, attempts to fix urls with unsafe characters.
+    :type fix_urls: bool
+    :param threads: Number of threads to use.
+    :type threads: int
     :param logger: An optional logger.
     :type logger: `logging.Logger` instance
     :param connect_default_logger: If true, connects a default logger to the class.
     :type connect_default_logger: bool
     :rtype: `SmartDL` instance
-    
+
     .. NOTE::
             The provided dest may be a folder or a full path name (including filename). The workflow is:
-            
-            * If the path exists, and it's an existing folder, the file will be downloaded to there with the original filename.
-            * If the past does not exist, it will create the folders, if needed, and refer to the last section of the path as the filename.
-            * If you want to download to folder that does not exist at the moment, and want the module to fill in the filename, make sure the path ends with `os.sep`.
-            * If no path is provided, `%TEMP%/pySmartDL/` will be used.
+
+            * If the path exists, and it's an existing folder, the file
+                    will be downloaded to there with the original filename.
+            * If the past does not exist, it will create the folders, if needed,
+                    and refer to the last section of the path as the filename.
+            * If you want to download to folder that does not exist at the moment,
+                    and want the module to fill in the filename, make sure the path ends with `os.sep`.
+            * If no path is provided, `%TEMP%/httpDownloader/` will be used.
     '''
-    
-    def __init__(self, urls, dest=None, progress_bar=True, fix_urls=True, threads=5, logger=None, connect_default_logger=False):
+
+    def __init__(self, urls, dest=None,
+                 progress_bar=True, fix_urls=True, threads=5, logger=None, connect_default_logger=False):
         global DEFAULT_LOGGER_CREATED
         
         self.mirrors = [urls] if isinstance(urls, basestring) else urls
@@ -83,7 +96,7 @@ class SmartDL:
         fn = urllib2.unquote(os.path.basename(urlparse(self.url).path))
         if sys.version_info < (3, 0):
             fn = fn.decode('utf-8')  # required only on python 2
-        self.dest = dest or os.path.join(tempfile.gettempdir(), 'pySmartDL', fn)
+        self.dest = dest or os.path.join(tempfile.gettempdir(), 'httpDownloader', fn)
         if self.dest[-1] == os.sep:
             if os.path.exists(self.dest[:-1]) and os.path.isfile(self.dest[:-1]):
                 os.unlink(self.dest[:-1])
@@ -100,7 +113,7 @@ class SmartDL:
                 self.logger = utils.create_debugging_logger()
                 DEFAULT_LOGGER_CREATED = True
             else:
-                self.logger = logging.getLogger('pySmartDL')
+                self.logger = logging.getLogger('httpDownloader')
         else:
             self.logger = utils.DummyLogger()
         
@@ -109,7 +122,7 @@ class SmartDL:
         self.timeout = 4
         self.current_attemp = 1 
         self.attemps_limit = 4
-        self.minChunkFile = 1024**2*2 # 2MB
+        self.minChunkFile = 1024**2*2  # 2MB
         self.filesize = 0
         self.shared_var = multiprocessing.Value(c_int, 0)  # a ctypes var that counts the bytes already downloaded
         self.thread_shared_cmds = {}
@@ -119,6 +132,9 @@ class SmartDL:
         self._failed = False
         self._start_func_blocking = True
         self.errors = []
+
+        self.hash_algorithm = None
+        self.hash_code = None
         
         self.post_threadpool_thread = None
         self.control_thread = None
@@ -140,6 +156,7 @@ class SmartDL:
         
     def __str__(self):
         return 'SmartDL(r"%s", dest=r"%s")' % (self.url, self.dest)
+
     def __repr__(self):
         return "<SmartDL %s>" % (self.url)
         
@@ -164,10 +181,12 @@ class SmartDL:
         passing hash verification, `HashFailedException` Exception will be raised.
         
         .. NOTE::
-            If downloaded file already exist on the destination, and hash matches, pySmartDL will not download it again.
+            If downloaded file already exist on the destination, and hash matches,
+                httpDownloader will not download it again.
             
         .. WARNING::
-            The hashing algorithm must be supported on your system, as documented at `hashlib documentation page <http://docs.python.org/2/library/hashlib.html>`_.
+            The hashing algorithm must be supported on your system, as documented at
+                `hashlib documentation page <http://docs.python.org/2/library/hashlib.html>`_.
         
         :param algorithm: Hashing algorithm.
         :type algorithm: string
@@ -222,7 +241,8 @@ class SmartDL:
             `isSuccessful()` after the task is finished, to make sure the download succeeded. Call
             `get_errors()` to get the the exceptions.
         
-        :param blocking: If true, calling this function will block the thread until the download finished. Default is *True*.
+        :param blocking: If true, calling this function will block the thread until the download finished.
+                            Default is *True*.
         :type blocking: bool
         '''
         if not self.status == "ready":
@@ -240,7 +260,8 @@ class SmartDL:
         
         if self.verify_hash and os.path.exists(self.dest):
             if get_file_hash(self.hash_algorithm, self.dest) == self.hash_code:
-                self.logger.info("Destination '%s' already exists, and the hash matches. No need to download." % self.dest)
+                self.logger.info("Destination '%s' already exists, and the hash matches. No need to download."
+                                 % self.dest)
                 self.status = 'finished'
                 return
         
@@ -271,26 +292,38 @@ class SmartDL:
             
         args = _calc_chunk_size(self.filesize, self.threads_count, self.minChunkFile)
         bytes_per_thread = args[0][1]-args[0][0]
-        if len(args)>1:
-            self.logger.info("Launching %d threads (downloads %s/Thread)." % (len(args),  utils.sizeof_human(bytes_per_thread)))
+        if len(args) > 1:
+            self.logger.info("Launching %d threads (downloads %s/Thread)."
+                             % (len(args), utils.sizeof_human(bytes_per_thread)))
         else:
             self.logger.info("Launching 1 thread.")
         
         self.status = "downloading"
         
         for i, arg in enumerate(args):
-            req = self.pool.submit(     download,
-                                        self.url,
-                                        self.dest+".%.3d" % i,
-                                        arg[0],
-                                        arg[1],
-                                        copy.deepcopy(self.headers),
-                                        self.timeout,
-                                        self.shared_var,
-                                        self.thread_shared_cmds
-                                        )
+            req = self.pool.submit(download,
+                                   self.url,
+                                   self.dest+".%.3d" % i,
+                                   arg[0],
+                                   arg[1],
+                                   copy.deepcopy(self.headers),
+                                   self.timeout,
+                                   self.shared_var,
+                                   self.thread_shared_cmds
+                                   )
         
-        self.post_threadpool_thread = threading.Thread(target=post_threadpool_actions, args=(self.pool, [[(self.dest+".%.3d" % i) for i in range(len(args))], self.dest], self.filesize, self))
+        self.post_threadpool_thread = threading.Thread(target=post_threadpool_actions,
+                                                       args=(self.pool,
+                                                             [
+                                                                 [
+                                                                     (self.dest+".%.3d" % i) for i in range(len(args))
+                                                                 ],
+                                                                 self.dest
+                                                             ],
+                                                             self.filesize,
+                                                             self
+                                                             )
+                                                       )
         self.post_threadpool_thread.daemon = True
         self.post_threadpool_thread.start()
         
@@ -344,6 +377,7 @@ class SmartDL:
             s = utils.time_human(self.control_thread.get_eta())
             return s if s else "TBD"
         return self.control_thread.get_eta()
+
     def get_speed(self, human=False):
         '''
         Get current transfer speed in bytes per second.
@@ -355,6 +389,7 @@ class SmartDL:
         if human:
             return "%s/s" % utils.sizeof_human(self.control_thread.get_speed())
         return self.control_thread.get_speed()
+
     def get_progress(self):
         '''
         Returns the current progress of the download, as a float between `0` and `1`.
@@ -366,18 +401,20 @@ class SmartDL:
         if self.control_thread.get_dl_size() <= self.filesize:
             return 1.0*self.control_thread.get_dl_size()/self.filesize
         return 1.0
+
     def get_progress_bar(self, length=20):
         '''
         Returns the current progress of the download as a string containing a progress bar.
         
         .. NOTE::
-            That's an alias for pySmartDL.utils.progress_bar(obj.get_progress()).
+            That's an alias for httpDownloader.utils.progress_bar(obj.get_progress()).
         
         :param length: The length of the progress bar in chars. Default is 20.
         :type length: int
         :rtype: string
         '''
         return utils.progress_bar(self.get_progress(), length)
+
     def isFinished(self):
         '''
         Returns if the task is finished.
@@ -389,6 +426,7 @@ class SmartDL:
         if self.status == "finished":
             return True
         return not self.post_threadpool_thread.is_alive()
+
     def isSuccessful(self):
         '''
         Returns if the download is successfull. It may fail in the following scenarios:
@@ -433,6 +471,7 @@ class SmartDL:
         :rtype: string
         '''
         return self.status
+
     def wait(self, raise_exceptions=False):
         '''
         Blocks until the download is finished.
@@ -450,6 +489,7 @@ class SmartDL:
         
         if self._failed and raise_exceptions:
             raise self.errors[-1]
+
     def stop(self):
         '''
         Stops the download.
@@ -457,6 +497,7 @@ class SmartDL:
         if self.status == "downloading":
             self.thread_shared_cmds['stop'] = ""
             self._killed = True
+
     def pause(self):
         '''
         Pauses the download.
@@ -464,6 +505,7 @@ class SmartDL:
         if self.status == "downloading":
             self.status = "paused"
             self.thread_shared_cmds['pause'] = ""
+
     def unpause(self):
         '''
         Continues the download.
@@ -492,6 +534,7 @@ class SmartDL:
         :rtype: string
         '''
         return self.dest
+
     def get_dl_time(self, human=False):
         '''
         Returns how much time did the download take, in seconds. Returns
@@ -520,8 +563,7 @@ class SmartDL:
         if human:
             return utils.sizeof_human(self.control_thread.get_dl_size())    
         return self.control_thread.get_dl_size()
-    
-    
+
     def get_data(self, binary=False, bytes=-1):
         '''
         Returns the downloaded data. Will raise `RuntimeError` if it's
@@ -538,7 +580,7 @@ class SmartDL:
             
         flags = 'rb' if binary else 'r'
         with open(self.get_dest(), flags) as f:
-            data = f.read(bytes) if bytes>0 else f.read()
+            data = f.read(bytes) if bytes > 0 else f.read()
         return data
         
     def get_data_hash(self, algorithm):
@@ -555,6 +597,7 @@ class SmartDL:
         '''
         return hashlib.new(algorithm, self.get_data(binary=True)).hexdigest()
 
+
 class ControlThread(threading.Thread):
     "A class that shows information about a running SmartDL object."
     def __init__(self, obj):
@@ -566,7 +609,7 @@ class ControlThread(threading.Thread):
         
         self.dl_speed = 0
         self.eta = 0
-        self.lastBytesSamples = [] # list with last 50 Bytes Samples.
+        self.lastBytesSamples = []  # list with last 50 Bytes Samples.
         self.last_calculated_totalBytes = 0
         self.calcETA_queue = []
         self.calcETA_i = 0
@@ -586,9 +629,11 @@ class ControlThread(threading.Thread):
                 
             if self.progress_bar:
                 if self.obj.filesize:
-                    status = r"[*] %s / %s @ %s/s %s [%3.1f%%, %s left]   " % (utils.sizeof_human(self.shared_var.value), utils.sizeof_human(self.obj.filesize), utils.sizeof_human(self.dl_speed), utils.progress_bar(1.0*self.shared_var.value/self.obj.filesize), self.shared_var.value * 100.0 / self.obj.filesize, utils.time_human(self.eta, fmt_short=True))
+                    status = r"[*] %s / %s @ %s/s %s [%3.1f%%, %s left]   " % (
+                    utils.sizeof_human(self.shared_var.value), utils.sizeof_human(self.obj.filesize), utils.sizeof_human(self.dl_speed), utils.progress_bar(1.0 * self.shared_var.value / self.obj.filesize), self.shared_var.value * 100.0 / self.obj.filesize, utils.time_human(self.eta, fmt_short=True))
                 else:
-                    status = r"[*] %s / ??? MB @ %s/s   " % (utils.sizeof_human(self.shared_var.value), utils.sizeof_human(self.dl_speed))
+                    status = r"[*] %s / ??? MB @ %s/s   " % (
+                    utils.sizeof_human(self.shared_var.value), utils.sizeof_human(self.dl_speed))
                 status = status + chr(8)*(len(status)+1)
                 print status,
             
@@ -600,9 +645,11 @@ class ControlThread(threading.Thread):
             
         if self.progress_bar:
             if self.obj.filesize:
-                print r"[*] %s / %s @ %s/s %s [100%%, 0s left]    " % (utils.sizeof_human(self.obj.filesize), utils.sizeof_human(self.obj.filesize), utils.sizeof_human(self.dl_speed), utils.progress_bar(1.0))
+                print r"[*] %s / %s @ %s/s %s [100%%, 0s left]    " % (
+                utils.sizeof_human(self.obj.filesize), utils.sizeof_human(self.obj.filesize), utils.sizeof_human(self.dl_speed), utils.progress_bar(1.0))
             else:
-                print r"[*] %s / %s @ %s/s    " % (utils.sizeof_human(self.shared_var.value), utils.sizeof_human(self.shared_var.value), utils.sizeof_human(self.dl_speed))
+                print r"[*] %s / %s @ %s/s    " % (
+                utils.sizeof_human(self.shared_var.value), utils.sizeof_human(self.shared_var.value), utils.sizeof_human(self.dl_speed))
                 
         t2 = time.time()
         self.dl_time = float(t2-t1)
@@ -619,20 +666,25 @@ class ControlThread(threading.Thread):
         if self.eta <= 0 or self.obj.status == 'paused':
             return 0
         return self.eta
+
     def get_speed(self):
         if self.obj.status == 'paused':
             return 0
         return self.dl_speed
+
     def get_dl_size(self):
         if self.shared_var.value > self.obj.filesize:
             return self.obj.filesize
         return self.shared_var.value
+
     def get_final_filesize(self):
         return self.obj.filesize
+
     def get_progress(self):
         if not self.obj.filesize:
             return 0
         return 1.0*self.shared_var.value/self.obj.filesize
+
     def get_dl_time(self):
         return self.dl_time
         
@@ -646,9 +698,9 @@ class ControlThread(threading.Thread):
         l = self.lastBytesSamples
         newBytes = totalBytes - self.last_calculated_totalBytes
         self.last_calculated_totalBytes = totalBytes
-        if newBytes >= 0: # newBytes may be negetive, will happen
-                          # if a thread has crushed and the totalBytes counter got decreased.
-            if len(l) == sampleCount: # calc download for last 3 seconds (30 * 100ms per signal emit)
+        if newBytes >= 0:   # newBytes may be negetive, will happen
+                            # if a thread has crushed and the totalBytes counter got decreased.
+            if len(l) == sampleCount:   # calc download for last 3 seconds (30 * 100ms per signal emit)
                 l.pop(0)
                 
             l.append(newBytes)
@@ -670,6 +722,7 @@ class ControlThread(threading.Thread):
             return 0
         return self.calcETA_val
 
+
 def post_threadpool_actions(pool, args, expected_filesize, SmartDL_obj):
     "Run function after thread pool is done. Run this in a thread."
     while not pool.done():
@@ -678,8 +731,7 @@ def post_threadpool_actions(pool, args, expected_filesize, SmartDL_obj):
     if pool.get_exceptions():
         SmartDL_obj.logger.warning(unicode(pool.get_exceptions()[0]))
         SmartDL_obj.retry(unicode(pool.get_exceptions()[0]))
-       
-        
+
     if SmartDL_obj._killed:
         return
         
@@ -687,7 +739,7 @@ def post_threadpool_actions(pool, args, expected_filesize, SmartDL_obj):
         SmartDL_obj.logger.warning("Task has errors. Exiting...")
         return
         
-    if expected_filesize: # if not zero, etc expected filesize is not known
+    if expected_filesize:   # if not zero, etc expected filesize is not known
         threads = len(args[0])
         total_filesize = sum([os.path.getsize(x) for x in args[0]])
         diff = math.fabs(expected_filesize - total_filesize)
@@ -704,13 +756,14 @@ def post_threadpool_actions(pool, args, expected_filesize, SmartDL_obj):
     if SmartDL_obj.verify_hash:
         dest_path = args[-1]            
         hash = get_file_hash(SmartDL_obj.hash_algorithm, dest_path)
-	
+
         if hash == SmartDL_obj.hash_code:
             SmartDL_obj.logger.info('Hash verification succeeded.')
         else:
             SmartDL_obj.logger.info('Hash verification failed.')
             SmartDL_obj.try_next_mirror(HashFailedException(os.path.basename(dest_path), hash, SmartDL_obj.hash_code))
     
+
 def _calc_chunk_size(filesize, threads, minChunkFile):
     if not filesize:
         return [(0, 0)]
@@ -730,6 +783,7 @@ def _calc_chunk_size(filesize, threads, minChunkFile):
         pos += chunk+1
         
     return args
+
 
 def download(url, dest, startByte=0, endByte=None, headers=None, timeout=4, shared_var=None, thread_shared_cmds=None, logger=None, retries=3):
     "The basic download function that runs at each thread."
@@ -773,7 +827,7 @@ def download(url, dest, startByte=0, endByte=None, headers=None, timeout=4, shar
             except IndexError:
                 logger.warning("Server did not send Content-Length.")
         
-        filesize_dl = 0 # total downloaded size
+        filesize_dl = 0     # total downloaded size
         # limitspeed_timestamp = 0
         # limitspeed_filesize = 0
         block_sz = 8192
@@ -813,7 +867,8 @@ def download(url, dest, startByte=0, endByte=None, headers=None, timeout=4, shar
             f.write(buff)
             
     urlObj.close()
-	
+
+
 def get_file_hash(algorithm, path):
     hashAlg = hashlib.new(algorithm)
     with open(path, 'rb') as f:
@@ -823,3 +878,14 @@ def get_file_hash(algorithm, path):
             hashAlg.update(data)
             data = f.read(readSize)
     return hashAlg.hexdigest()
+
+
+def httpDownload(url, dest):
+    obj = http_d1_workerownload(url, dest, progress_bar=False, threads=8)
+    obj.start()
+    # [*] 0.23 Mb / 0.37 Mb @ 88.00Kb/s [##########--------] [60%, 2s left]
+    path = obj.get_dest()
+    logging.info('File {0} was downloaded to {1}'.format(url, path))
+    logging.info(obj.get_status())
+    logging.info(obj.get_progress())
+    return path

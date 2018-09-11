@@ -15,30 +15,32 @@ from concurrent import futures  # if python2, a backport is needed
 from math import log
 import shutil
 
+
 def combine_files(parts, dest):
-	'''
-	Combines files.
+    '''
+    Combines files.
 
-	:param parts: Source files.
-	:type parts: list of strings
-	:param dest: Destination file.
-	:type dest: string
+    :param parts: Source files.
+    :type parts: list of strings
+    :param dest: Destination file.
+    :type dest: string
 
-	'''
-	chunkSize = 1024 * 1024 * 4
-	
-	if len(parts) == 1:
-		shutil.move(parts[0], dest)
-	else:
-		with open(dest, 'wb') as output:
-			for part in parts:
-				with open(part, 'rb') as input:
-					data = input.read(chunkSize)
-					while data:
-						output.write(data)
-						data = input.read(chunkSize)
-				os.remove(part)
+    '''
+    chunkSize = 1024 * 1024 * 4
+
+    if len(parts) == 1:
+        shutil.move(parts[0], dest)
+    else:
+        with open(dest, 'wb') as output:
+            for part in parts:
+                with open(part, 'rb') as input:
+                    data = input.read(chunkSize)
+                    while data:
+                        output.write(data)
+                        data = input.read(chunkSize)
+                os.remove(part)
             
+
 def url_fix(s, charset='utf-8'):
     '''
     Sometimes you get an URL by a user that just isn't a real
@@ -65,6 +67,7 @@ def url_fix(s, charset='utf-8'):
     qs = urllib.quote_plus(qs, ':&=')
     return urlparse.urlunsplit((scheme, netloc, path, qs, anchor))
     
+
 def progress_bar(progress, length=20):
     '''
     Returns a textual progress bar.
@@ -78,7 +81,7 @@ def progress_bar(progress, length=20):
     :type length: int
     :rtype: string
     '''
-    length -= 2 # The brackets are 2 chars long.
+    length -= 2  # The brackets are 2 chars long.
     if progress < 0:
         progress = 0
     if progress > 1:
@@ -247,7 +250,7 @@ def create_debugging_logger():
     
     :rtype: `logging.Logger` instance
     '''
-    t_log = logging.getLogger('pySmartDL')
+    t_log = logging.getLogger('httpDownloader')
     t_log.setLevel(logging.DEBUG)
     console = logging.StreamHandler()
     console.setLevel(logging.DEBUG)
