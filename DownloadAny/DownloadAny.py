@@ -6,6 +6,7 @@ import logging
 import sys
 from urlparse import urlparse
 from ftpDownloader import ftpDownload
+from ftpDownloader import ftp_get_modify_date
 from httpDownloader import httpDownload
 
 
@@ -23,8 +24,17 @@ def downloadURL(url, dest):
         path = httpDownload(url, dest)
     else:
         return ''
-    print('File: {1}\n\twas downloaded\nto: {0}'.format(path, url))
+
     return path
+
+def get_modify_date(url):
+    o = urlparse(url)
+    if o.scheme == 'ftp':
+        return ftp_get_modify_date(url)
+    elif o.scheme == 'http':
+        return None
+    else:
+        return None
 
 
 if __name__ == '__main__':

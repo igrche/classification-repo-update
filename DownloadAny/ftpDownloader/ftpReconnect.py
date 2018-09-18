@@ -259,6 +259,27 @@ class PyFTPclient:
         self.disconnect('getFileSize')
         return filesize
 
+def ftp_get_modify_date(url):
+    o = urlparse(url)
+    FTP_host = o.hostname
+    FTP_port = int(o.port) if o.port else 21
+    FTP_login = o.username if o.username else ''
+    FTP_password = o.password if o.password else ''
+    FTP_path = o.path
+    FTP_cwd = os.path.dirname(FTP_path)
+    FTP_file = os.path.basename(FTP_path)
+
+    ftp = ftplib.FTP()
+    ftp.connect(FTP_host, FTP_port)
+    ftp.login(FTP_login, FTP_password)
+    ftp.cwd(FTP_cwd)
+    modifiedTime = ftp.sendcmd('MDTM ' + FTP_file)
+    # successful response: '213 20120222090254'
+    ftp.quit()
+
+    from datetime import datetime
+    return modifiedTime[4:8] + '-' + modifiedTime[8:10] + '-' + modifiedTime[10:12]
+
 
 def ftpDownload(url, dest, mim_size=26214400, chunk_size=104857600, logging_level=logging.ERROR):
     logging.basicConfig(stream=sys.stdout, level=logging_level)

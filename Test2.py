@@ -7,7 +7,7 @@ import os
 import xml.etree.ElementTree as ET
 import re
 from os.path import expanduser
-from DownloadAny import downloadURL
+from DownloadAny import downloadURL, get_modify_date
 
 work_dir = ''
 if platform.system() == "Windows":
@@ -80,6 +80,41 @@ def do_ngs_classification_diamond_uniref50_database(element):
 
     return result
 
+
+def do_ngs_classification_taxonomy(element):
+    ugene_dict = xml_to_dict(element)
+    ugene_Name = ugene_dict['children']['Name']['text']
+    ugene_Version = ugene_dict['children']['Version']['text']
+    ugene_ReleaseDate = ugene_dict['children']['ReleaseDate']['text']
+    ugene_DownloadableArchives = ugene_dict['children']['DownloadableArchives']['text']
+    ugene_Script = ugene_dict['children']['Script']['text']
+    ugene_OS = ugene_dict['children']['UpdateFile']['attrib']['OS']
+    ugene_CompressedSize = ugene_dict['children']['UpdateFile']['attrib']['CompressedSize']
+    ugene_UncompressedSize = ugene_dict['children']['UpdateFile']['attrib']['UncompressedSize']
+    ugene_SHA1 = ugene_dict['children']['SHA1']['text']
+
+    remote_taxonomy_cwd = 'ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/'
+
+    nucl_est_accession2taxid = remote_taxonomy_cwd + 'nucl_est.accession2taxid.gz'
+    nucl_gb_accession2taxid  = remote_taxonomy_cwd + 'nucl_gb.accession2taxid.gz'
+    nucl_gss_accession2taxid = remote_taxonomy_cwd + 'nucl_gss.accession2taxid.gz'
+    nucl_wgs_accession2taxid = remote_taxonomy_cwd + 'nucl_wgs.accession2taxid.gz'
+    prot_accession2taxid     = remote_taxonomy_cwd + 'prot.accession2taxid.gz'
+
+    remote_modify_date = get_modify_date(prot_accession2taxid)
+    if ugene_ReleaseDate < remote_modify_date:
+        work_dir_taxonomy = os.path.join(work_dir, 'taxonomy')
+        download_nucl_est_accession2taxid = downloadURL(nucl_est_accession2taxid, work_dir_taxonomy)
+        download_nucl_gb_accession2taxid = downloadURL(nucl_gb_accession2taxid, work_dir_taxonomy)
+        download_nucl_gss_accession2taxid = downloadURL(nucl_gss_accession2taxid, work_dir_taxonomy)
+        download_nucl_wgs_accession2taxid = downloadURL(nucl_wgs_accession2taxid, work_dir_taxonomy)
+        download_prot_accession2taxid = downloadURL(prot_accession2taxid, work_dir_taxonomy)
+
+        download_prot_accession2taxid = downloadURL('ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz', work_dir_taxonomy)
+
+
+
+
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
 
@@ -104,5 +139,7 @@ if __name__ == '__main__':
                         do_ngs_classification_clark_bacterial_viral_database(child)
                     elif child2.text == 'ngs_classification.diamond.uniref50_database':
                         do_ngs_classification_diamond_uniref50_database(child)
+                    elif child2.text == 'ngs_classification.taxonomy':
+                        do_ngs_classification_taxonomy(child)
                     else:
                         print "\t", child2.text
