@@ -298,46 +298,56 @@ def ftpDownload(url, dest, mim_size=26214400, chunk_size=104857600, logging_leve
     obj.setCwd(FTP_cwd)
     obj.setBlockSize(8192)
     obj.setFileName(FTP_file)
-
     filesize = obj.getFileSize()
 
-    if filesize < mim_size:
-        FTP_parts = 1
-    else:
-        FTP_parts = filesize / chunk_size
-        if FTP_parts < 1:
-            FTP_parts = 1
-    chunk_size = filesize / FTP_parts
-    last_chunk_size = filesize - (chunk_size * (FTP_parts - 1))
-
-    downloaders = []
-    for i in range(FTP_parts):
-        if i == (FTP_parts - 1):
-            this_chunk_size = last_chunk_size
-        else:
-            this_chunk_size = chunk_size
-
-        obj = PyFTPclient(FTP_host, FTP_port, FTP_login, FTP_password, logging_level=logging_level)
-        obj.setCwd(FTP_cwd)
-        obj.setBlockSize(8192 * 32)
-        obj.setFileName(FTP_file)
-        obj.setLocalName(dest + os.sep + FTP_file + ".%.3d" % i)
-        obj.setChunkStart(chunk_size * i)
-        obj.setChunkSize(this_chunk_size)
-        obj.downloadFileInThread()
-
-        downloaders.append(obj)
-
-    for downloader in downloaders:
-        downloader.thread.join()
-
     if os.path.isdir(dest):
-        dest = os.path.abspath(dest) + os.path.sep + FTP_file
-    with open(dest, 'w+b') as f:
+        dest_dir = dest
+        dest_file = os.path.abspath(dest_dir) + os.path.sep + FTP_file
+    else:
+        dest_dir = os.path.dirname(dest)
+        dest_file = dest
+
+    file_already_downloaded = False
+    if os.path.isfile(dest_file) and os.path.getsize(dest_file) == filesize:
+        file_already_downloaded = True
+
+    if not file_already_downloaded:
+        if filesize < mim_size:
+            FTP_parts = 1
+        else:
+            FTP_parts = filesize / chunk_size
+            if FTP_parts < 1:
+                FTP_parts = 1
+        chunk_size = filesize / FTP_parts
+        last_chunk_size = filesize - (chunk_size * (FTP_parts - 1))
+
+        downloaders = []
+        for i in range(FTP_parts):
+            if i == (FTP_parts - 1):
+                this_chunk_size = last_chunk_size
+            else:
+                this_chunk_size = chunk_size
+
+            obj = PyFTPclient(FTP_host, FTP_port, FTP_login, FTP_password, logging_level=logging_level)
+            obj.setCwd(FTP_cwd)
+            obj.setBlockSize(8192 * 32)
+            obj.setFileName(FTP_file)
+            obj.setLocalName(dest_file + ".%.3d" % i)
+            obj.setChunkStart(chunk_size * i)
+            obj.setChunkSize(this_chunk_size)
+            obj.downloadFileInThread()
+
+            downloaders.append(obj)
+
         for downloader in downloaders:
-            copyfileobj(open(downloader.local_filename, 'rb'), f)
-            os.remove(downloader.local_filename)
-    return dest
+            downloader.thread.join()
+
+        with open(dest_file, 'w+b') as f:
+            for downloader in downloaders:
+                copyfileobj(open(downloader.local_filename, 'rb'), f)
+                os.remove(downloader.local_filename)
+
+    return dest_file
 
 
 if __name__ == "__main__":
