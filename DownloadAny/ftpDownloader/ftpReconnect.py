@@ -158,7 +158,8 @@ class PyFTPclient:
                 break
             except Exception, e:
                 if e.message == '421 There are too many connections from your internet address.' or \
-                        e.message == '530 Sorry, you have exceeded the number of connections.':
+                        e.message == '530 Sorry, you have exceeded the number of connections.' or \
+                        e.message == 'timed out':
                     self.wait_for_free_socket = True
                     logging.info(e.message)
                     sleep_time = PyFTPclient.wait_for_free_socket_timeout \
@@ -171,6 +172,10 @@ class PyFTPclient:
                 else:
                     logging.error('{1}: Failed to connect + login + cwd: {0}'.format(e.message, message))
                     raise
+            except:
+                import sys
+                # prints `type(e), e` where `e` is the last exception
+                print 'Failed to connect + login + cwd:', sys.exc_info()[:2]
 
     def downloadFile(self):
         res = ''
