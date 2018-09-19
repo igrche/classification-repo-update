@@ -27,19 +27,6 @@ def xml_to_dict(node):
         }
     }
 
-def do_ngs_classification_clark_bacterial_viral_database(element):
-    dict = xml_to_dict(element)
-    Name = dict['children']['Name']['text']
-    Dependencies = dict['children']['Dependencies']['text']
-    Version = dict['children']['Version']['text']
-    ReleaseDate = dict['children']['ReleaseDate']['text']
-    DownloadableArchives = dict['children']['DownloadableArchives']['text']
-    Script = dict['children']['Script']['text']
-    OS = dict['children']['UpdateFile']['attrib']['OS']
-    CompressedSize = dict['children']['UpdateFile']['attrib']['CompressedSize']
-    UncompressedSize = dict['children']['UpdateFile']['attrib']['UncompressedSize']
-    SHA1 = dict['children']['SHA1']['text']
-
 
 def do_ngs_classification_diamond_uniref50_database(element):
     if 'uniref50' in list_downloaded_repo \
@@ -87,8 +74,71 @@ def do_ngs_classification_diamond_uniref50_database(element):
         download_uniref50 = downloadURL(remote_uniref50_fasta_gz, work_dir_uniref50)
         list_downloaded_repo['uniref50'] = True
 
-
     return result
+
+
+def do_ngs_classification_refseq_viral(element):
+    if 'refseq_viral' in list_downloaded_repo \
+            and list_downloaded_repo['refseq_viral']:
+        return True
+
+    ugene_dict = xml_to_dict(element)
+    ugene_Name = ugene_dict['children']['Name']['text']
+    ugene_Dependencies = ugene_dict['children']['Dependencies']['text']
+    ugene_Version = ugene_dict['children']['Version']['text']
+    ugene_ReleaseDate = ugene_dict['children']['ReleaseDate']['text']
+    ugene_ReleaseDate = ugene_dict['children']['ReleaseDate']['text']
+    ugene_DownloadableArchives = ugene_dict['children']['DownloadableArchives']['text']
+    ugene_Script = ugene_dict['children']['Script']['text']
+    ugene_OS = ugene_dict['children']['UpdateFile']['attrib']['OS']
+    ugene_CompressedSize = ugene_dict['children']['UpdateFile']['attrib']['CompressedSize']
+    ugene_UncompressedSize = ugene_dict['children']['UpdateFile']['attrib']['UncompressedSize']
+    ugene_SHA1 = ugene_dict['children']['SHA1']['text']
+
+    remote_refseq_viral_RELEASE_NUMBER = 'ftp://ftp.ncbi.nih.gov/refseq/release/RELEASE_NUMBER'
+    remote_refseq_viral_genomic_fna_gz = 'ftp://ftp.ncbi.nlm.nih.gov/refseq/release/viral/'
+
+    work_dir_refseq_viral = os.path.join(work_dir, 'refseq_viral')
+    download_refseq_viral_RELEASE_NUMBER = downloadURL(remote_refseq_viral_RELEASE_NUMBER, work_dir_refseq_viral)
+    file = open(download_refseq_viral_RELEASE_NUMBER, "r")
+    remote_Version = int(file.read())
+
+    download_refseq_viral = downloadURL(remote_refseq_viral_genomic_fna_gz, work_dir_refseq_viral, ".genomic.fna.gz")
+    list_downloaded_repo['refseq_viral'] = True
+
+    return True
+
+
+def do_ngs_classification_refseq_bacterial(element):
+    if 'refseq_bacterial' in list_downloaded_repo \
+            and list_downloaded_repo['refseq_bacterial']:
+        return True
+
+    ugene_dict = xml_to_dict(element)
+    ugene_Name = ugene_dict['children']['Name']['text']
+    ugene_Dependencies = ugene_dict['children']['Dependencies']['text']
+    ugene_Version = ugene_dict['children']['Version']['text']
+    ugene_ReleaseDate = ugene_dict['children']['ReleaseDate']['text']
+    ugene_ReleaseDate = ugene_dict['children']['ReleaseDate']['text']
+    ugene_DownloadableArchives = ugene_dict['children']['DownloadableArchives']['text']
+    ugene_Script = ugene_dict['children']['Script']['text']
+    ugene_OS = ugene_dict['children']['UpdateFile']['attrib']['OS']
+    ugene_CompressedSize = ugene_dict['children']['UpdateFile']['attrib']['CompressedSize']
+    ugene_UncompressedSize = ugene_dict['children']['UpdateFile']['attrib']['UncompressedSize']
+    ugene_SHA1 = ugene_dict['children']['SHA1']['text']
+
+    remote_refseq_bacterial_RELEASE_NUMBER = 'ftp://ftp.ncbi.nih.gov/refseq/release/RELEASE_NUMBER'
+    remote_refseq_bacterial_genomic_fna_gz = 'ftp://ftp.ncbi.nlm.nih.gov/refseq/release/bacteria/'
+
+    work_dir_refseq_bacterial = os.path.join(work_dir, 'refseq_bacterial')
+    download_refseq_bacterial_RELEASE_NUMBER = downloadURL(remote_refseq_bacterial_RELEASE_NUMBER, work_dir_refseq_bacterial)
+    file = open(download_refseq_bacterial_RELEASE_NUMBER, "r")
+    remote_Version = int(file.read())
+
+    download_refseq_bacterial = downloadURL(remote_refseq_bacterial_genomic_fna_gz, work_dir_refseq_bacterial, ".genomic.fna.gz")
+    list_downloaded_repo['refseq_bacterial'] = True
+
+    return True
 
 
 def do_ngs_classification_taxonomy(element):
@@ -146,14 +196,17 @@ if __name__ == '__main__':
     root = updates_xml_tree.getroot()
     for child in root:
         if child.tag == 'PackageUpdate':
-            print child.tag
             for child2 in child:
                 if child2.tag == 'Name':
                     if child2.text == 'ngs_classification.taxonomy':
                         do_ngs_classification_taxonomy(child)
-                    elif child2.text == 'ngs_classification.clark.bacterial_viral_database':
-                        do_ngs_classification_clark_bacterial_viral_database(child)
                     elif child2.text == 'ngs_classification.diamond.uniref50_database':
                         do_ngs_classification_diamond_uniref50_database(child)
+                    elif child2.text == 'ngs_classification.refseq.viral':
+                        do_ngs_classification_refseq_viral(child)
+                    elif child2.text == 'ngs_classification.refseq.bacterial':
+                        do_ngs_classification_refseq_bacterial(child)
                     else:
                         print "\t", child2.text
+
+    print 'Downloaded data:\n\t', ('\n\t'.join('{}'.format(item) for item in list_downloaded_repo))

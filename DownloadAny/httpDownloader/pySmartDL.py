@@ -880,7 +880,7 @@ def get_file_hash(algorithm, path):
     return hashAlg.hexdigest()
 
 
-def httpDownload(url, dest):
+def httpDownload(url, dest, mask):
     obj = http_d1_workerownload(url, dest, progress_bar=False, threads=8)
     obj.start()
     # [*] 0.23 Mb / 0.37 Mb @ 88.00Kb/s [##########--------] [60%, 2s left]

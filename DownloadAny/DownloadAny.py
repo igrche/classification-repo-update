@@ -10,7 +10,7 @@ from ftpDownloader import ftp_get_modify_date
 from httpDownloader import httpDownload
 
 
-def downloadURL(url, dest):
+def downloadURL(url, dest, mask=None):
     if os.path.isfile(dest):
         dest = os.path.dirname(dest)
     else:
@@ -19,13 +19,14 @@ def downloadURL(url, dest):
     path = ''
     o = urlparse(url)
     if o.scheme == 'ftp':
-        path = ftpDownload(url, dest)
+        path = ftpDownload(url, dest, mask)
     elif o.scheme == 'http':
-        path = httpDownload(url, dest)
+        path = httpDownload(url, dest, mask)
     else:
         return ''
 
     return path
+
 
 def get_modify_date(url):
     o = urlparse(url)
