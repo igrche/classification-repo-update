@@ -9,11 +9,8 @@ import re
 from os.path import expanduser
 from DownloadAny import downloadURL, get_modify_date
 
-work_dir = ''
-if platform.system() == "Windows":
-    work_dir = "e:\\ichebyki\\Downloads\\"
-else:
-    work_dir = "/home/ichebyki/Downloads"
+work_dir = 'classification-repo-update-work'
+list_downloaded_repo = []
 
 def xml_to_dict(node):
     u'''
@@ -45,6 +42,10 @@ def do_ngs_classification_clark_bacterial_viral_database(element):
 
 
 def do_ngs_classification_diamond_uniref50_database(element):
+    if 'uniref50' in list_downloaded_repo \
+            and list_downloaded_repo['uniref50']:
+        return True
+
     ugene_dict = xml_to_dict(element)
     ugene_Name = ugene_dict['children']['Name']['text']
     ugene_Dependencies = ugene_dict['children']['Dependencies']['text']
@@ -73,25 +74,30 @@ def do_ngs_classification_diamond_uniref50_database(element):
     remote_Version_array = re.split(r"_|-", remote_Version)
 
     result = False
+    if 'ngs_classification.taxonomy' in ugene_Dependencies:
+        if do_ngs_classification_taxonomy(element):
+            result = True
+
     if (ugene_ReleaseDate_array[0] < remote_Version_array[0]):
         result = True
     if (ugene_ReleaseDate_array[1] < remote_Version_array[1]):
         result = True
 
+    if result:
+        download_uniref50 = downloadURL(remote_uniref50_fasta_gz, work_dir_uniref50)
+        list_downloaded_repo['uniref50'] = True
+
+
     return result
 
 
 def do_ngs_classification_taxonomy(element):
+    if 'taxonomy' in list_downloaded_repo \
+            and list_downloaded_repo['taxonomy']:
+        return True
+
     ugene_dict = xml_to_dict(element)
-    ugene_Name = ugene_dict['children']['Name']['text']
-    ugene_Version = ugene_dict['children']['Version']['text']
     ugene_ReleaseDate = ugene_dict['children']['ReleaseDate']['text']
-    ugene_DownloadableArchives = ugene_dict['children']['DownloadableArchives']['text']
-    ugene_Script = ugene_dict['children']['Script']['text']
-    ugene_OS = ugene_dict['children']['UpdateFile']['attrib']['OS']
-    ugene_CompressedSize = ugene_dict['children']['UpdateFile']['attrib']['CompressedSize']
-    ugene_UncompressedSize = ugene_dict['children']['UpdateFile']['attrib']['UncompressedSize']
-    ugene_SHA1 = ugene_dict['children']['SHA1']['text']
 
     remote_taxonomy_cwd = 'ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/'
 
@@ -110,8 +116,12 @@ def do_ngs_classification_taxonomy(element):
         download_nucl_wgs_accession2taxid = downloadURL(nucl_wgs_accession2taxid, work_dir_taxonomy)
         download_prot_accession2taxid = downloadURL(prot_accession2taxid, work_dir_taxonomy)
 
-        download_prot_accession2taxid = downloadURL('ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz', work_dir_taxonomy)
+        download_taxdump = downloadURL('ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz', work_dir_taxonomy)
 
+        list_downloaded_repo['taxonomy'] = True
+        return True
+
+    return False
 
 
 
@@ -119,7 +129,11 @@ if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
 
     home_dir = expanduser("~")
-    work_dir = os.path.join(tempfile.gettempdir(), 'classification-repo-update-work')
+
+    if platform.system() == "Windows":
+        work_dir = "e:\\ichebyki\\Downloads\\" + work_dir
+    else:
+        work_dir = "/home/ichebyki/Downloads/" + work_dir
 
     '''
     1) Скачать файл Updates.xml.
@@ -135,11 +149,11 @@ if __name__ == '__main__':
             print child.tag
             for child2 in child:
                 if child2.tag == 'Name':
-                    if child2.text == 'ngs_classification.clark.bacterial_viral_database':
+                    if child2.text == 'ngs_classification.taxonomy':
+                        do_ngs_classification_taxonomy(child)
+                    elif child2.text == 'ngs_classification.clark.bacterial_viral_database':
                         do_ngs_classification_clark_bacterial_viral_database(child)
                     elif child2.text == 'ngs_classification.diamond.uniref50_database':
                         do_ngs_classification_diamond_uniref50_database(child)
-                    elif child2.text == 'ngs_classification.taxonomy':
-                        do_ngs_classification_taxonomy(child)
                     else:
                         print "\t", child2.text

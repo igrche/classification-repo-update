@@ -15,7 +15,7 @@ def downloadURL(url, dest):
         dest = os.path.dirname(dest)
     else:
         if not os.path.isdir(dest):
-            os.mkdir(dest)
+            os.makedirs(dest)
     path = ''
     o = urlparse(url)
     if o.scheme == 'ftp':
