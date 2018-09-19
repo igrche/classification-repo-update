@@ -10,7 +10,7 @@ from os.path import expanduser
 from DownloadAny import downloadURL, get_modify_date
 
 work_dir = 'classification-repo-update-work'
-list_downloaded_repo = []
+list_downloaded_repo = {}
 
 def xml_to_dict(node):
     u'''
