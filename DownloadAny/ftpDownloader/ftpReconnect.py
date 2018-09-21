@@ -158,6 +158,9 @@ class PyFTPclient:
                 # self.ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 75)
                 # self.ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
                 break
+            except socket.error, e:
+                logging.error('socket.error: {0}'.format(e.message))
+                i = i + 1
             except Exception, e:
                 if e.message == '421 There are too many connections from your internet address.' or \
                         e.message == '530 Sorry, you have exceeded the number of connections.' or \
@@ -176,7 +179,6 @@ class PyFTPclient:
                     raise
             except:
                 import sys
-                # prints `type(e), e` where `e` is the last exception
                 print 'Failed to connect + login + cwd:', sys.exc_info()[:2]
 
     def downloadFile(self):
@@ -258,13 +260,23 @@ class PyFTPclient:
             return 1
 
     def getFileSize(self):
-        self.connect('getFileSize')
-        self.ftp.cwd(self.cwd)
-        self.ftp.set_pasv(True)
-        self.ftp.voidcmd('TYPE I')
-        filesize = self.ftp.size(self.fileName)
-        self.disconnect('getFileSize')
-        return filesize
+        try_count = 16
+        i = 0
+
+        while i < try_count:
+            try:
+                self.connect('getFileSize')
+                self.ftp.cwd(self.cwd)
+                self.ftp.set_pasv(True)
+                self.ftp.voidcmd('TYPE I')
+                filesize = self.ftp.size(self.fileName)
+                self.disconnect('getFileSize')
+                return filesize
+            except socket.error, e:
+                logging.error('socket.error: {0}'.format(e.message))
+                i = i + 1
+
+        return -1
 
     def getList(self, mask):
         self.connect('getList')

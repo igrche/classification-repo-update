@@ -889,7 +889,7 @@ def get_file_hash(algorithm, path):
     return hashAlg.hexdigest()
 
 
-def httpDownload(url, dest, mask=None, mask2=None):
+def httpDownload(url, dest, dest_alt, mask=None, mask2=None):
     obj = http_d1_workerownload(url, dest, progress_bar=False, threads=8)
     if not obj.is_already_downloaded():
         obj.start()
@@ -901,5 +901,5 @@ def httpDownload(url, dest, mask=None, mask2=None):
     return path
 
 
-def httpsDownload(url, dest, mask=None, mask2=None):
-    return httpDownload(url, dest, mask=None, mask2=None)
+def httpsDownload(url, dest, dest_alt, mask=None, mask2=None):
+    return httpDownload(url, dest, dest_alt, mask=None, mask2=None)

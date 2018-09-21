@@ -11,18 +11,17 @@ from os.path import expanduser
 from DownloadAny import downloadURL, get_modify_date
 
 list_downloaded_repo = {}
-work_dir = 'classification-repo-update-work'
 
-dest_dir = 'ugene_repo'
-dest_dir_taxonomy = 'ngs_classification.taxonomy/data/data/ngs_classification/taxonomy'
-dest_dir_uniref50 = 'ngs_classification.diamond.uniref50_database/data/data/ngs_classification/diamond/uniref'
-dest_dir_uniref90 = 'ngs_classification.diamond.uniref90_database/data/data/ngs_classification/diamond/uniref'
-dest_dir_minikraken_4gb = 'ngs_classification.kraken.minikraken_4gb_database/data/data/ngs_classification/kraken/minikraken_4gb'
-dest_dir_refseq_grch38 = 'ngs_classification.refseq.grch38/data/data/ngs_classification/refseq/human'
-dest_dir_refseq_viral = 'ngs_classification.refseq.viral/data/data/ngs_classification/refseq/viral'
-dest_dir_refseq_bacterial = 'ngs_classification.refseq.bacterial/data/data/ngs_classification/refseq/bacterial'
-dest_dir_refseq_viral_database = ''
-dest_dir_refseq_bacterial_database = ''
+subdirs = {}
+subdirs['taxonomy'] = 'ngs_classification.taxonomy/data/data/ngs_classification/taxonomy'
+subdirs['uniref50'] = 'ngs_classification.diamond.uniref50_database/data/data/ngs_classification/diamond/uniref'
+subdirs['uniref90'] = 'ngs_classification.diamond.uniref90_database/data/data/ngs_classification/diamond/uniref'
+subdirs['minikraken_4gb'] = 'ngs_classification.kraken.minikraken_4gb_database/data/data/ngs_classification/kraken/minikraken_4gb'
+subdirs['refseq_grch38'] = 'ngs_classification.refseq.grch38/data/data/ngs_classification/refseq/human'
+subdirs['refseq_viral'] = 'ngs_classification.refseq.viral/data/data/ngs_classification/refseq/viral'
+subdirs['refseq_bacterial'] = 'ngs_classification.refseq.bacterial/data/data/ngs_classification/refseq/bacterial'
+subdirs['refseq_viral_database'] = ''
+subdirs['refseq_bacterial_database'] = ''
 
 def xml_to_dict(node):
     u'''
@@ -40,7 +39,7 @@ def xml_to_dict(node):
     }
 
 
-def do_ngs_classification_taxonomy(element):
+def do_ngs_classification_taxonomy(element, dest_dir_root, dest_subdirs):
     if 'taxonomy' in list_downloaded_repo \
             and list_downloaded_repo['taxonomy']:
         return True
@@ -58,14 +57,14 @@ def do_ngs_classification_taxonomy(element):
 
     remote_modify_date = get_modify_date(prot_accession2taxid)
     if ugene_ReleaseDate < remote_modify_date:
-        work_dir_taxonomy = os.path.join(work_dir, 'taxonomy')
-        download_nucl_est_accession2taxid = downloadURL(nucl_est_accession2taxid, work_dir_taxonomy)
-        download_nucl_gb_accession2taxid = downloadURL(nucl_gb_accession2taxid, work_dir_taxonomy)
-        download_nucl_gss_accession2taxid = downloadURL(nucl_gss_accession2taxid, work_dir_taxonomy)
-        download_nucl_wgs_accession2taxid = downloadURL(nucl_wgs_accession2taxid, work_dir_taxonomy)
-        download_prot_accession2taxid = downloadURL(prot_accession2taxid, work_dir_taxonomy)
+        dest_dir_taxonomy = os.path.join(dest_dir_root, dest_subdirs['taxonomy'])
+        download_nucl_est_accession2taxid = downloadURL(nucl_est_accession2taxid, dest_dir_taxonomy)
+        download_nucl_gb_accession2taxid = downloadURL(nucl_gb_accession2taxid, dest_dir_taxonomy)
+        download_nucl_gss_accession2taxid = downloadURL(nucl_gss_accession2taxid, dest_dir_taxonomy)
+        download_nucl_wgs_accession2taxid = downloadURL(nucl_wgs_accession2taxid, dest_dir_taxonomy)
+        download_prot_accession2taxid = downloadURL(prot_accession2taxid, dest_dir_taxonomy)
 
-        download_taxdump = downloadURL('ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz', work_dir_taxonomy)
+        download_taxdump = downloadURL('ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz', dest_dir_taxonomy)
 
         list_downloaded_repo['taxonomy'] = True
         return True
@@ -73,7 +72,7 @@ def do_ngs_classification_taxonomy(element):
     return False
 
 
-def do_ngs_classification_diamond_uniref50_database(element):
+def do_ngs_classification_diamond_uniref50_database(element, dest_dir_root, dest_subdirs):
     if 'uniref50' in list_downloaded_repo \
             and list_downloaded_repo['uniref50']:
         return True
@@ -95,8 +94,8 @@ def do_ngs_classification_diamond_uniref50_database(element):
     remote_prot_accession2taxid_gz = 'ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz'
     remote_prot_accession2taxid_gz_md5 = 'ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz.md5'
 
-    work_dir_uniref50 = os.path.join(work_dir, 'uniref50')
-    download_uniref50_RELEASE_metalink = downloadURL(remote_uniref50_RELEASE_metalink, work_dir_uniref50)
+    dest_dir_uniref50 = os.path.join(dest_dir_root, dest_subdirs['uniref50'])
+    download_uniref50_RELEASE_metalink = downloadURL(remote_uniref50_RELEASE_metalink, dest_dir_uniref50)
     download_uniref50_RELEASE_metalink_tree = ET.parse(download_uniref50_RELEASE_metalink)
     root = download_uniref50_RELEASE_metalink_tree.getroot()
 
@@ -107,7 +106,7 @@ def do_ngs_classification_diamond_uniref50_database(element):
 
     result = False
     if 'ngs_classification.taxonomy' in ugene_Dependencies:
-        if do_ngs_classification_taxonomy(element):
+        if do_ngs_classification_taxonomy(element, dest_dir_root, dest_subdirs):
             result = True
 
     if (ugene_ReleaseDate_array[0] < remote_Version_array[0]):
@@ -116,13 +115,13 @@ def do_ngs_classification_diamond_uniref50_database(element):
         result = True
 
     if result:
-        download_uniref50 = downloadURL(remote_uniref50_fasta_gz, work_dir_uniref50)
+        download_uniref50 = downloadURL(remote_uniref50_fasta_gz, dest_dir_uniref50)
         list_downloaded_repo['uniref50'] = True
 
     return result
 
 
-def do_ngs_classification_diamond_uniref90_database(element):
+def do_ngs_classification_diamond_uniref90_database(element, dest_dir_root, dest_subdirs):
     if 'uniref90' in list_downloaded_repo \
             and list_downloaded_repo['uniref90']:
         return True
@@ -144,8 +143,8 @@ def do_ngs_classification_diamond_uniref90_database(element):
     remote_prot_accession2taxid_gz = 'ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz'
     remote_prot_accession2taxid_gz_md5 = 'ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz.md5'
 
-    work_dir_uniref90 = os.path.join(work_dir, 'uniref90')
-    download_uniref90_RELEASE_metalink = downloadURL(remote_uniref90_RELEASE_metalink, work_dir_uniref90)
+    dest_dir_uniref90 = os.path.join(dest_dir_root, dest_subdirs['uniref90'])
+    download_uniref90_RELEASE_metalink = downloadURL(remote_uniref90_RELEASE_metalink, dest_dir_uniref90)
     download_uniref90_RELEASE_metalink_tree = ET.parse(download_uniref90_RELEASE_metalink)
     root = download_uniref90_RELEASE_metalink_tree.getroot()
 
@@ -156,7 +155,7 @@ def do_ngs_classification_diamond_uniref90_database(element):
 
     result = False
     if 'ngs_classification.taxonomy' in ugene_Dependencies:
-        if do_ngs_classification_taxonomy(element):
+        if do_ngs_classification_taxonomy(element, dest_dir_root, dest_subdirs):
             result = True
 
     if (ugene_ReleaseDate_array[0] < remote_Version_array[0]):
@@ -165,13 +164,13 @@ def do_ngs_classification_diamond_uniref90_database(element):
         result = True
 
     if result:
-        download_uniref90 = downloadURL(remote_uniref90_fasta_gz, work_dir_uniref90)
+        download_uniref90 = downloadURL(remote_uniref90_fasta_gz, dest_dir_uniref90)
         list_downloaded_repo['uniref90'] = True
 
     return result
 
 
-def do_ngs_classification_refseq_viral(element):
+def do_ngs_classification_refseq_viral(element, dest_dir_root, dest_subdirs):
     if 'refseq_viral' in list_downloaded_repo \
             and list_downloaded_repo['refseq_viral']:
         return True
@@ -192,18 +191,18 @@ def do_ngs_classification_refseq_viral(element):
     remote_refseq_viral_RELEASE_NUMBER = 'ftp://ftp.ncbi.nih.gov/refseq/release/RELEASE_NUMBER'
     remote_refseq_viral_genomic_fna_gz = 'ftp://ftp.ncbi.nlm.nih.gov/refseq/release/viral/'
 
-    work_dir_refseq_viral = os.path.join(work_dir, 'refseq_viral')
-    download_refseq_viral_RELEASE_NUMBER = downloadURL(remote_refseq_viral_RELEASE_NUMBER, work_dir_refseq_viral)
+    dest_dir_refseq_viral = os.path.join(dest_dir_root, dest_subdirs['refseq_viral'])
+    download_refseq_viral_RELEASE_NUMBER = downloadURL(remote_refseq_viral_RELEASE_NUMBER, dest_dir_refseq_viral)
     file = open(download_refseq_viral_RELEASE_NUMBER, "r")
     remote_Version = int(file.read())
 
-    download_refseq_viral = downloadURL(remote_refseq_viral_genomic_fna_gz, work_dir_refseq_viral, ".genomic.fna.gz")
+    download_refseq_viral = downloadURL(remote_refseq_viral_genomic_fna_gz, dest_dir_refseq_viral, ".genomic.fna.gz")
     list_downloaded_repo['refseq_viral'] = True
 
     return True
 
 
-def do_ngs_classification_refseq_bacterial(element):
+def do_ngs_classification_refseq_bacterial(element, dest_dir_root, dest_subdirs):
     if 'refseq_bacterial' in list_downloaded_repo \
             and list_downloaded_repo['refseq_bacterial']:
         return True
@@ -224,18 +223,18 @@ def do_ngs_classification_refseq_bacterial(element):
     remote_refseq_bacterial_RELEASE_NUMBER = 'ftp://ftp.ncbi.nih.gov/refseq/release/RELEASE_NUMBER'
     remote_refseq_bacterial_genomic_fna_gz = 'ftp://ftp.ncbi.nlm.nih.gov/refseq/release/bacteria/'
 
-    work_dir_refseq_bacterial = os.path.join(work_dir, 'refseq_bacterial')
-    download_refseq_bacterial_RELEASE_NUMBER = downloadURL(remote_refseq_bacterial_RELEASE_NUMBER, work_dir_refseq_bacterial)
+    dest_dir_refseq_bacterial = os.path.join(dest_dir_root, dest_subdirs['refseq_bacterial'])
+    download_refseq_bacterial_RELEASE_NUMBER = downloadURL(remote_refseq_bacterial_RELEASE_NUMBER, dest_dir_refseq_bacterial)
     file = open(download_refseq_bacterial_RELEASE_NUMBER, "r")
     remote_Version = int(file.read())
 
-    download_refseq_bacterial = downloadURL(remote_refseq_bacterial_genomic_fna_gz, work_dir_refseq_bacterial, ".genomic.fna.gz")
+    download_refseq_bacterial = downloadURL(remote_refseq_bacterial_genomic_fna_gz, dest_dir_refseq_bacterial, ".genomic.fna.gz")
     list_downloaded_repo['refseq_bacterial'] = True
 
     return True
 
 
-def do_ngs_classification_refseq_grch38(element):
+def do_ngs_classification_refseq_grch38(element, dest_dir_root, dest_subdirs):
     if 'refseq_grch38' in list_downloaded_repo \
             and list_downloaded_repo['refseq_grch38']:
         return True
@@ -256,18 +255,18 @@ def do_ngs_classification_refseq_grch38(element):
     remote_refseq_RELEASE_NUMBER = 'ftp://ftp.ncbi.nih.gov/refseq/release/RELEASE_NUMBER'
     remote_refseq_grch38 = 'ftp://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/H_sapiens/'
 
-    work_dir_refseq_grch38 = os.path.join(work_dir, 'refseq_grch38')
-    download_refseq_RELEASE_NUMBER = downloadURL(remote_refseq_RELEASE_NUMBER, work_dir_refseq_grch38)
+    dest_dir_refseq_grch38 = os.path.join(dest_dir_root, dest_subdirs['refseq_grch38'])
+    download_refseq_RELEASE_NUMBER = downloadURL(remote_refseq_RELEASE_NUMBER, dest_dir_refseq_grch38)
     file = open(download_refseq_RELEASE_NUMBER, "r")
     remote_Version = int(file.read())
 
-    download_refseq_grch38 = downloadURL(remote_refseq_grch38, work_dir_refseq_grch38, "CHR_\w+", "hs_ref_GRCh38.p12_chr\w+\.fa\.gz")
+    download_refseq_grch38 = downloadURL(remote_refseq_grch38, dest_dir_refseq_grch38, "CHR_\w+", "hs_ref_GRCh38.p12_chr\w+\.fa\.gz")
     list_downloaded_repo['refseq_grch38'] = True
 
     return True
 
 
-def do_ngs_classification_minikraken_4gb(element):
+def do_ngs_classification_minikraken_4gb(element, dest_dir_root, dest_subdirs):
     if 'minikraken_4gb' in list_downloaded_repo \
             and list_downloaded_repo['minikraken_4gb']:
         return True
@@ -306,29 +305,20 @@ def do_ngs_classification_minikraken_4gb(element):
     remote_minikraken_4gb = remote_html_url + remote_link
 
     if ugene_ReleaseDate < remote_version:
-        work_dir_minikraken_4gb = os.path.join(work_dir, 'minikraken_4gb')
-        download_minikraken_4gb = downloadURL(remote_minikraken_4gb, work_dir_minikraken_4gb)
-    list_downloaded_repo['minikraken_4gb'] = True
+        dest_dir_minikraken_4gb = os.path.join(dest_dir_root, dest_subdirs['minikraken_4gb'])
+        download_minikraken_4gb = downloadURL(remote_minikraken_4gb, dest_dir_minikraken_4gb)
+        list_downloaded_repo['minikraken_4gb'] = True
 
     return True
 
 
-if __name__ == '__main__':
-    logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
-
-    home_dir = expanduser("~")
-
-    if platform.system() == "Windows":
-        work_dir = "e:\\ichebyki\\Downloads\\" + work_dir
-    else:
-        work_dir = "/home/ichebyki/Downloads/" + work_dir
-
+def download_all(dest_dir_root):
     '''
     1) Скачать файл Updates.xml.
     2) Вытащить из него текущие версии нужных компонентов
     '''
     updates_xml_url = 'http://ugene.net/downloads/installer_repositories/data/ngs_classification/Updates.xml'
-    updates_xml = downloadURL(updates_xml_url, work_dir)
+    updates_xml = downloadURL(updates_xml_url, dest_dir_root)
 
     updates_xml_tree = ET.parse(updates_xml)
     root = updates_xml_tree.getroot()
@@ -337,27 +327,26 @@ if __name__ == '__main__':
             for child2 in child:
                 if child2.tag == 'Name':
                     if child2.text == 'ngs_classification.taxonomy':
-                        do_ngs_classification_taxonomy(child)
+                        do_ngs_classification_taxonomy(child, dest_dir_root, subdirs)
                         pass
                     elif child2.text == 'ngs_classification.diamond.uniref50_database':
-                        do_ngs_classification_diamond_uniref50_database(child)
+                        do_ngs_classification_diamond_uniref50_database(child, dest_dir_root, subdirs)
                         pass
                     elif child2.text == 'ngs_classification.diamond.uniref90_database':
-                        do_ngs_classification_diamond_uniref90_database(child)
+                        do_ngs_classification_diamond_uniref90_database(child, dest_dir_root, subdirs)
                         pass
                     elif child2.text == 'ngs_classification.refseq.viral':
-                        do_ngs_classification_refseq_viral(child)
+                        do_ngs_classification_refseq_viral(child, dest_dir_root, subdirs)
                         pass
                     elif child2.text == 'ngs_classification.refseq.bacterial':
-                        do_ngs_classification_refseq_bacterial(child)
+                        do_ngs_classification_refseq_bacterial(child, dest_dir_root, subdirs)
                         pass
                     elif child2.text == 'ngs_classification.refseq.grch38':
-                        do_ngs_classification_refseq_grch38(child)
+                        do_ngs_classification_refseq_grch38(child, dest_dir_root, subdirs)
                         pass
                     elif child2.text == 'ngs_classification.kraken.minikraken_4gb_database':
-                        do_ngs_classification_minikraken_4gb(child)
+                        do_ngs_classification_minikraken_4gb(child, dest_dir_root, subdirs)
                         pass
                     else:
                         print "\t", child2.text
-
-    print 'Downloaded data:\n\t', ('\n\t'.join('{}'.format(item) for item in list_downloaded_repo))
+    return list_downloaded_repo

@@ -9,13 +9,18 @@ from ftpDownloader import ftpDownload
 from ftpDownloader import ftp_get_modify_date
 from httpDownloader import httpDownload, httpsDownload
 
+def make_dest_dir(dir):
+    if os.path.isfile(dir):
+        dir = os.path.dirname(dir)
+    else:
+        if not os.path.isdir(dir):
+            os.makedirs(dir)
+    return dir
+
 
 def downloadURL(url, dest, mask=None, mask2=None):
-    if os.path.isfile(dest):
-        dest = os.path.dirname(dest)
-    else:
-        if not os.path.isdir(dest):
-            os.makedirs(dest)
+    dest = make_dest_dir(dest)
+
     path = ''
     o = urlparse(url)
     if o.scheme == 'ftp':
