@@ -159,7 +159,7 @@ class PyFTPclient:
                 # self.ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
                 break
             except socket.error, e:
-                logging.error('socket.error: {0}'.format(e.message))
+                logging.error('PyFTPclient.connect(): socket.error: {0}'.format(e.message))
                 i = i + 1
             except Exception, e:
                 if e.message == '421 There are too many connections from your internet address.' or \
@@ -273,7 +273,7 @@ class PyFTPclient:
                 self.disconnect('getFileSize')
                 return filesize
             except socket.error, e:
-                logging.error('socket.error: {0}'.format(e.message))
+                logging.error('PyFTPclient.getFileSize(): socket.error: {0}'.format(e.message))
                 i = i + 1
 
         return -1
