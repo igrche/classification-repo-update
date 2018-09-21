@@ -153,12 +153,21 @@ class http_d1_workerownload:
         
         self.logger.info("Creating a ThreadPool of %d thread(s).", self.threads_count)
         self.pool = utils.ManagedThreadPoolExecutor(self.threads_count)
+
+        urllibobject = urllib2.urlopen(self.url)
+        urllength = int(urllibobject.headers["Content-Length"])
+        locallength = os.stat(self.dest).st_size if os.path.exists(self.dest) and os.path.isfile(self.dest) else 0
+
+        self.url_already_downloaded = True if urllength > 10000000 and urllength == locallength and locallength > 0 else False
         
     def __str__(self):
         return 'SmartDL(r"%s", dest=r"%s")' % (self.url, self.dest)
 
     def __repr__(self):
         return "<SmartDL %s>" % (self.url)
+
+    def is_already_downloaded(self):
+        return self.url_already_downloaded
         
     def add_basic_authentication(self, username, password):
         '''
@@ -880,12 +889,17 @@ def get_file_hash(algorithm, path):
     return hashAlg.hexdigest()
 
 
-def httpDownload(url, dest, mask):
+def httpDownload(url, dest, mask=None, mask2=None):
     obj = http_d1_workerownload(url, dest, progress_bar=False, threads=8)
-    obj.start()
+    if not obj.is_already_downloaded():
+        obj.start()
     # [*] 0.23 Mb / 0.37 Mb @ 88.00Kb/s [##########--------] [60%, 2s left]
     path = obj.get_dest()
     logging.info('File {0} was downloaded to {1}'.format(url, path))
     logging.info(obj.get_status())
     logging.info(obj.get_progress())
     return path
+
+
+def httpsDownload(url, dest, mask=None, mask2=None):
+    return httpDownload(url, dest, mask=None, mask2=None)

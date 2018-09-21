@@ -10,6 +10,8 @@ import time
 import sys
 import os
 import random
+import re
+
 from threading import Thread
 from urlparse import urlparse
 from shutil import copyfileobj
@@ -270,12 +272,39 @@ class PyFTPclient:
         self.ftp.set_pasv(True)
         ls = []
         self.ftp.dir(ls.append)
-        self.disconnect('getList')
-        result = []
+        result = {}
         for f in ls:
             ff = f.split(' ')
             if (not mask) or (mask and mask in ff[-1]):
-                result.append(ff[-1])
+                result[ff[-1]] = ''
+
+        self.disconnect('getList')
+        return result
+
+    def getList2(self, mask, mask2):
+        self.connect('getList2')
+        self.ftp.cwd(self.cwd)
+        self.ftp.set_pasv(True)
+        ls = []
+        self.ftp.dir(ls.append)
+
+        mask_dirs = []
+        for f in ls:
+            ff = f.split(' ')
+            if (re.match(mask,ff[-1])):
+                mask_dirs.append(ff[-1])
+
+        result = {}
+        for dir in mask_dirs:
+            self.ftp.cwd(self.cwd + '/' + dir)
+            ls = []
+            self.ftp.dir(ls.append)
+            for f in ls:
+                ff = f.split(' ')
+                if (re.match(mask2,ff[-1])):
+                    result[ff[-1]] = dir
+
+        self.disconnect('getList2')
         return result
 
 def ftp_get_modify_date(url):
@@ -300,7 +329,7 @@ def ftp_get_modify_date(url):
     return modifiedTime[4:8] + '-' + modifiedTime[8:10] + '-' + modifiedTime[10:12]
 
 
-def ftpDownload(url, dest, mask='', mim_size=26214400, chunk_size=10485760, logging_level=logging.ERROR):
+def ftpDownload(url, dest, mask='', mask2='', mim_size=26214400, chunk_size=10485760, logging_level=logging.ERROR):
     logging.basicConfig(stream=sys.stdout, level=logging_level)
 
     o = urlparse(url)
@@ -318,15 +347,19 @@ def ftpDownload(url, dest, mask='', mim_size=26214400, chunk_size=10485760, logg
     obj.setCwd(FTP_cwd)
     obj.setBlockSize(8192)
 
-    ls = []
-    if mask:
+    ls = {}
+    if mask2:
+        ls = obj.getList2(mask, mask2)
+    elif mask:
         ls = obj.getList(mask)
     else:
-        ls.append(FTP_file)
+        ls[FTP_file] = ''
 
     dest_dir = ''
     dest_file = ''
-    for FTP_file in ls:
+    for FTP_file in ls.keys():
+        FTP_cwd_full = FTP_cwd + '/' + ls[FTP_file]
+        obj.setCwd(FTP_cwd_full)
         obj.setFileName(FTP_file)
         filesize = obj.getFileSize()
 
@@ -362,7 +395,7 @@ def ftpDownload(url, dest, mask='', mim_size=26214400, chunk_size=10485760, logg
                     this_chunk_size = FTP_chunk_size
 
                 obj = PyFTPclient(FTP_host, FTP_port, FTP_login, FTP_password, logging_level=logging_level)
-                obj.setCwd(FTP_cwd)
+                obj.setCwd(FTP_cwd_full)
                 obj.setBlockSize(8192 * 32)
                 obj.setFileName(FTP_file)
                 obj.setLocalName(dest_file + ".%.3d" % i)
