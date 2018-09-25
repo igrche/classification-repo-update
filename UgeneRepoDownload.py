@@ -10,7 +10,7 @@ import urllib2
 from os.path import expanduser
 from DownloadAny import downloadURL, get_modify_date
 
-list_downloaded_repo = {}
+list_updated_repo = {}
 
 subdirs = {}
 subdirs['taxonomy'] = 'ngs_classification.taxonomy/data/data/ngs_classification/taxonomy'
@@ -40,8 +40,8 @@ def xml_to_dict(node):
 
 
 def do_ngs_classification_taxonomy(element, dest_dir_root, dest_subdirs):
-    if 'taxonomy' in list_downloaded_repo \
-            and list_downloaded_repo['taxonomy']:
+    if 'taxonomy' in list_updated_repo \
+            and list_updated_repo['taxonomy']:
         return True
 
     ugene_dict = xml_to_dict(element)
@@ -66,15 +66,15 @@ def do_ngs_classification_taxonomy(element, dest_dir_root, dest_subdirs):
 
         download_taxdump = downloadURL('ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz', dest_dir_taxonomy)
 
-        list_downloaded_repo['taxonomy'] = True
+        list_updated_repo['taxonomy'] = download_taxdump
         return True
 
     return False
 
 
 def do_ngs_classification_diamond_uniref50_database(element, dest_dir_root, dest_subdirs):
-    if 'uniref50' in list_downloaded_repo \
-            and list_downloaded_repo['uniref50']:
+    if 'uniref50' in list_updated_repo \
+            and list_updated_repo['uniref50']:
         return True
 
     ugene_dict = xml_to_dict(element)
@@ -116,14 +116,14 @@ def do_ngs_classification_diamond_uniref50_database(element, dest_dir_root, dest
 
     if result:
         download_uniref50 = downloadURL(remote_uniref50_fasta_gz, dest_dir_uniref50)
-        list_downloaded_repo['uniref50'] = True
+        list_updated_repo['uniref50'] = download_uniref50
 
     return result
 
 
 def do_ngs_classification_diamond_uniref90_database(element, dest_dir_root, dest_subdirs):
-    if 'uniref90' in list_downloaded_repo \
-            and list_downloaded_repo['uniref90']:
+    if 'uniref90' in list_updated_repo \
+            and list_updated_repo['uniref90']:
         return True
 
     ugene_dict = xml_to_dict(element)
@@ -165,14 +165,14 @@ def do_ngs_classification_diamond_uniref90_database(element, dest_dir_root, dest
 
     if result:
         download_uniref90 = downloadURL(remote_uniref90_fasta_gz, dest_dir_uniref90)
-        list_downloaded_repo['uniref90'] = True
+        list_updated_repo['uniref90'] = True
 
     return result
 
 
 def do_ngs_classification_refseq_viral(element, dest_dir_root, dest_subdirs):
-    if 'refseq_viral' in list_downloaded_repo \
-            and list_downloaded_repo['refseq_viral']:
+    if 'refseq_viral' in list_updated_repo \
+            and list_updated_repo['refseq_viral']:
         return True
 
     ugene_dict = xml_to_dict(element)
@@ -197,14 +197,14 @@ def do_ngs_classification_refseq_viral(element, dest_dir_root, dest_subdirs):
     remote_Version = int(file.read())
 
     download_refseq_viral = downloadURL(remote_refseq_viral_genomic_fna_gz, dest_dir_refseq_viral, ".genomic.fna.gz")
-    list_downloaded_repo['refseq_viral'] = True
+    list_updated_repo['refseq_viral'] = True
 
     return True
 
 
 def do_ngs_classification_refseq_bacterial(element, dest_dir_root, dest_subdirs):
-    if 'refseq_bacterial' in list_downloaded_repo \
-            and list_downloaded_repo['refseq_bacterial']:
+    if 'refseq_bacterial' in list_updated_repo \
+            and list_updated_repo['refseq_bacterial']:
         return True
 
     ugene_dict = xml_to_dict(element)
@@ -229,14 +229,14 @@ def do_ngs_classification_refseq_bacterial(element, dest_dir_root, dest_subdirs)
     remote_Version = int(file.read())
 
     download_refseq_bacterial = downloadURL(remote_refseq_bacterial_genomic_fna_gz, dest_dir_refseq_bacterial, ".genomic.fna.gz")
-    list_downloaded_repo['refseq_bacterial'] = True
+    list_updated_repo['refseq_bacterial'] = True
 
     return True
 
 
 def do_ngs_classification_refseq_grch38(element, dest_dir_root, dest_subdirs):
-    if 'refseq_grch38' in list_downloaded_repo \
-            and list_downloaded_repo['refseq_grch38']:
+    if 'refseq_grch38' in list_updated_repo \
+            and list_updated_repo['refseq_grch38']:
         return True
 
     ugene_dict = xml_to_dict(element)
@@ -261,14 +261,14 @@ def do_ngs_classification_refseq_grch38(element, dest_dir_root, dest_subdirs):
     remote_Version = int(file.read())
 
     download_refseq_grch38 = downloadURL(remote_refseq_grch38, dest_dir_refseq_grch38, "CHR_\w+", "hs_ref_GRCh38.p12_chr\w+\.fa\.gz")
-    list_downloaded_repo['refseq_grch38'] = True
+    list_updated_repo['refseq_grch38'] = True
 
     return True
 
 
 def do_ngs_classification_minikraken_4gb(element, dest_dir_root, dest_subdirs):
-    if 'minikraken_4gb' in list_downloaded_repo \
-            and list_downloaded_repo['minikraken_4gb']:
+    if 'minikraken_4gb' in list_updated_repo \
+            and list_updated_repo['minikraken_4gb']:
         return True
 
     ugene_dict = xml_to_dict(element)
@@ -307,12 +307,12 @@ def do_ngs_classification_minikraken_4gb(element, dest_dir_root, dest_subdirs):
     if ugene_ReleaseDate < remote_version:
         dest_dir_minikraken_4gb = os.path.join(dest_dir_root, dest_subdirs['minikraken_4gb'])
         download_minikraken_4gb = downloadURL(remote_minikraken_4gb, dest_dir_minikraken_4gb)
-        list_downloaded_repo['minikraken_4gb'] = True
+        list_updated_repo['minikraken_4gb'] = True
 
     return True
 
 
-def download_all(dest_dir_root):
+def download_all(dest_dir_root, ext_tools_root):
     '''
     1) Скачать файл Updates.xml.
     2) Вытащить из него текущие версии нужных компонентов
@@ -349,4 +349,15 @@ def download_all(dest_dir_root):
                         pass
                     else:
                         print "\t", child2.text
-    return list_downloaded_repo
+
+    if list_updated_repo['uniref50'] or list_updated_repo['taxonomy']:
+        diamond = ext_tools_root + os.path.sep + 'diamond-0.9.22' + os.path.sep + 'diamond'
+        os.chdir(list_updated_repo['uniref50'])
+        cmd = diamond + \
+              ' --in uniref50.fasta.gz' + \
+              ' --db uniref50.dmnd' + \
+              ' --taxonmap ' + list_updated_repo['taxonomy'] + os.path.sep + 'prot.accession2taxid.gz' + \
+              ' --taxonnodes ' + list_updated_repo['taxonomy'] + os.path.sep + 'nodes.dmp}'
+        os.system(cmd)
+
+    return list_updated_repo

@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     dest_dir = os.path.join(dest_dir, 'UGENE-REPO')
     time_start = int(time.time())
-    list_downloaded = download_all(dest_dir)
+    list_downloaded = download_all(dest_dir, '/home/ichebyki/WORKS/ext_tools_linux_64-bit')
     time_end = int(time.time())
 
     time_epapsed = time_end - time_start
