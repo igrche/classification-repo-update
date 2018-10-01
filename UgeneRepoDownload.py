@@ -165,7 +165,7 @@ def do_ngs_classification_diamond_uniref90_database(element, dest_dir_root, dest
 
     if result:
         download_uniref90 = downloadURL(remote_uniref90_fasta_gz, dest_dir_uniref90)
-        list_updated_repo['uniref90'] = True
+        list_updated_repo['uniref90'] = download_uniref90
 
     return result
 
@@ -312,6 +312,11 @@ def do_ngs_classification_minikraken_4gb(element, dest_dir_root, dest_subdirs):
     return True
 
 
+def os_system_cmd(cmd):
+    print("EXEC: " + cmd)
+    return os.system(cmd)
+
+
 def download_all(dest_dir_root, ext_tools_root):
     '''
     1) Скачать файл Updates.xml.
@@ -335,29 +340,19 @@ def download_all(dest_dir_root, ext_tools_root):
                     elif child2.text == 'ngs_classification.diamond.uniref90_database':
                         do_ngs_classification_diamond_uniref90_database(child, dest_dir_root, subdirs)
                         pass
-                    elif child2.text == 'ngs_classification.refseq.viral':
-                        do_ngs_classification_refseq_viral(child, dest_dir_root, subdirs)
-                        pass
-                    elif child2.text == 'ngs_classification.refseq.bacterial':
-                        do_ngs_classification_refseq_bacterial(child, dest_dir_root, subdirs)
-                        pass
-                    elif child2.text == 'ngs_classification.refseq.grch38':
-                        do_ngs_classification_refseq_grch38(child, dest_dir_root, subdirs)
-                        pass
-                    elif child2.text == 'ngs_classification.kraken.minikraken_4gb_database':
-                        do_ngs_classification_minikraken_4gb(child, dest_dir_root, subdirs)
-                        pass
+                    # elif child2.text == 'ngs_classification.refseq.viral':
+                    #     do_ngs_classification_refseq_viral(child, dest_dir_root, subdirs)
+                    #     pass
+                    # elif child2.text == 'ngs_classification.refseq.bacterial':
+                    #     do_ngs_classification_refseq_bacterial(child, dest_dir_root, subdirs)
+                    #     pass
+                    # elif child2.text == 'ngs_classification.refseq.grch38':
+                    #     do_ngs_classification_refseq_grch38(child, dest_dir_root, subdirs)
+                    #     pass
+                    # elif child2.text == 'ngs_classification.kraken.minikraken_4gb_database':
+                    #     do_ngs_classification_minikraken_4gb(child, dest_dir_root, subdirs)
+                    #     pass
                     else:
-                        print "\t", child2.text
-
-    if list_updated_repo['uniref50'] or list_updated_repo['taxonomy']:
-        diamond = ext_tools_root + os.path.sep + 'diamond-0.9.22' + os.path.sep + 'diamond'
-        os.chdir(list_updated_repo['uniref50'])
-        cmd = diamond + \
-              ' --in uniref50.fasta.gz' + \
-              ' --db uniref50.dmnd' + \
-              ' --taxonmap ' + list_updated_repo['taxonomy'] + os.path.sep + 'prot.accession2taxid.gz' + \
-              ' --taxonnodes ' + list_updated_repo['taxonomy'] + os.path.sep + 'nodes.dmp}'
-        os.system(cmd)
+                        print "SKIP:", child2.text
 
     return list_updated_repo

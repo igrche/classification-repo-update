@@ -158,9 +158,12 @@ class PyFTPclient:
                 # self.ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 75)
                 # self.ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
                 break
-            except socket.error, e:
-                logging.error('PyFTPclient.connect(): socket.error: {0}'.format(e.message))
+            except IOError as e:
+                self.wait_for_free_socket = True
+                logging.error('PyFTPclient.connect(): IOError: {0}, iter={1} out of {2}'.format(e.message, i, try_count))
+                time.sleep(sleep_time)
                 i = i + 1
+                self.wait_for_free_socket = False
             except Exception, e:
                 if e.message == '421 There are too many connections from your internet address.' or \
                         e.message == '530 Sorry, you have exceeded the number of connections.' or \
@@ -230,6 +233,18 @@ class PyFTPclient:
                     self.waiting = True
                     break
 
+                except IOError as e:
+                    self.waiting = True
+                    self.max_attempts -= 1
+                    if self.max_attempts <= 0:
+                        mon.set()
+                        logging.error('')
+                        raise
+
+                    logging.debug('{1}: ERROR: self.ftp RETR error: {0}'.format(e.message, 'downloadFile (loop)'))
+                    logging.info('{1}: waiting {0} sec...'.format(self.monitor_interval, 'downloadFile (loop)'))
+                    time.sleep(self.monitor_interval)
+
                 except Exception, e:
                     self.waiting = True
                     self.max_attempts -= 1
@@ -241,6 +256,7 @@ class PyFTPclient:
                     logging.debug('{1}: ERROR: self.ftp RETR error: {0}'.format(e.message, 'downloadFile (loop)'))
                     logging.info('{1}: waiting {0} sec...'.format(self.monitor_interval, 'downloadFile (loop)'))
                     time.sleep(self.monitor_interval)
+
 
             mon.set()   # stop monitor
             self.disconnect('downloadFile')
@@ -272,8 +288,9 @@ class PyFTPclient:
                 filesize = self.ftp.size(self.fileName)
                 self.disconnect('getFileSize')
                 return filesize
-            except socket.error, e:
-                logging.error('PyFTPclient.getFileSize(): socket.error: {0}'.format(e.message))
+            except IOError as e:
+                logging.error('PyFTPclient.getFileSize(): IOError: {0}, iter {1} out of {2}'.format(e.message, i, try_count))
+                time.sleep(60)
                 i = i + 1
 
         return -1
