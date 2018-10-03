@@ -144,12 +144,15 @@ class PyFTPclient:
 
     def connect(self, message):
         logging.info('{0}: try to connect'.format(message))
-        self.ftp = ftplib.FTP()
+        sleep_time = PyFTPclient.wait_for_free_socket_timeout \
+                + (PyFTPclient.wait_for_free_socket_timeout * random.randint(0, 21) / 50) \
+                - PyFTPclient.wait_for_free_socket_timeout / 5
+        self.ftp = ftplib.FTP(timeout = self.monitor_interval - 4)
         try_count = 16
         i = 0
         while i < try_count:
             try:
-                self.ftp.connect(self.host, self.port, timeout=15)
+                self.ftp.connect(self.host, self.port, timeout=60)
                 self.ftp.set_debuglevel(2 if self.logging_level == logging.DEBUG
                                         else 1 if self.logging_level == logging.INFO else 0)
                 self.ftp.login(self.login, self.passwd)
@@ -158,28 +161,16 @@ class PyFTPclient:
                 # self.ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 75)
                 # self.ftp.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
                 break
-            except IOError as e:
+            except (Exception, IOError, socket.error, socket.timeout), e:
                 self.wait_for_free_socket = True
-                logging.error('PyFTPclient.connect(): IOError: {0}, iter={1} out of {2}'.format(e.message, i, try_count))
+                logging.info(e.message)
+                sleep_time = PyFTPclient.wait_for_free_socket_timeout \
+                        + (PyFTPclient.wait_for_free_socket_timeout * random.randint(0, 21) / 50) \
+                        - PyFTPclient.wait_for_free_socket_timeout / 5
+                logging.error('{1}: Waiting free sockets for {0} sec ({2} out of {3})...'.format(sleep_time, e.message, i, try_count))
                 time.sleep(sleep_time)
                 i = i + 1
                 self.wait_for_free_socket = False
-            except Exception, e:
-                if e.message == '421 There are too many connections from your internet address.' or \
-                        e.message == '530 Sorry, you have exceeded the number of connections.' or \
-                        e.message == 'timed out':
-                    self.wait_for_free_socket = True
-                    logging.info(e.message)
-                    sleep_time = PyFTPclient.wait_for_free_socket_timeout \
-                            + (PyFTPclient.wait_for_free_socket_timeout * random.randint(0, 21) / 50) \
-                            - PyFTPclient.wait_for_free_socket_timeout / 5
-                    logging.info('{1}: Waiting free sockets for {0} sec ({2} out of {3})...'.format(sleep_time, message, i, try_count))
-                    time.sleep(sleep_time)
-                    i = i + 1
-                    self.wait_for_free_socket = False
-                else:
-                    logging.error('{1}: Failed to connect + login + cwd: {0}'.format(e.message, message))
-                    raise
             except:
                 import sys
                 print 'Failed to connect + login + cwd:', sys.exc_info()[:2]
@@ -216,7 +207,7 @@ class PyFTPclient:
             else:
                 self.dst_filesize = self.chunkSize
 
-            self.ftp = ftplib.FTP()
+            self.ftp = ftplib.FTP(timeout = self.monitor_interval - 4)
 
             mon = monitor()
             while self.dst_filesize > self.f.tell():
@@ -233,24 +224,12 @@ class PyFTPclient:
                     self.waiting = True
                     break
 
-                except IOError as e:
+                except (Exception, IOError,socket.error,socket.timeout), e:
                     self.waiting = True
                     self.max_attempts -= 1
                     if self.max_attempts <= 0:
                         mon.set()
                         logging.error('')
-                        raise
-
-                    logging.debug('{1}: ERROR: self.ftp RETR error: {0}'.format(e.message, 'downloadFile (loop)'))
-                    logging.info('{1}: waiting {0} sec...'.format(self.monitor_interval, 'downloadFile (loop)'))
-                    time.sleep(self.monitor_interval)
-
-                except Exception, e:
-                    self.waiting = True
-                    self.max_attempts -= 1
-                    if self.max_attempts <= 0:
-                        mon.set()
-                        logging.exception('')
                         raise
 
                     logging.debug('{1}: ERROR: self.ftp RETR error: {0}'.format(e.message, 'downloadFile (loop)'))
@@ -288,7 +267,7 @@ class PyFTPclient:
                 filesize = self.ftp.size(self.fileName)
                 self.disconnect('getFileSize')
                 return filesize
-            except IOError as e:
+            except (IOError,socket.error,socket.timeout), e:
                 logging.error('PyFTPclient.getFileSize(): IOError: {0}, iter {1} out of {2}'.format(e.message, i, try_count))
                 time.sleep(60)
                 i = i + 1
@@ -346,13 +325,24 @@ def ftp_get_modify_date(url):
     FTP_cwd = os.path.dirname(FTP_path)
     FTP_file = os.path.basename(FTP_path)
 
-    ftp = ftplib.FTP()
-    ftp.connect(FTP_host, FTP_port)
-    ftp.login(FTP_login, FTP_password)
-    ftp.cwd(FTP_cwd)
-    modifiedTime = ftp.sendcmd('MDTM ' + FTP_file)
-    # successful response: '213 20120222090254'
-    ftp.quit()
+    try_count = 16
+    i = 0
+    modifiedTime = ''
+    while i < try_count:
+        try:
+            ftp = ftplib.FTP()
+            ftp.connect(FTP_host, FTP_port, timeout=60)
+            ftp.login(FTP_login, FTP_password)
+            ftp.cwd(FTP_cwd)
+            modifiedTime = ftp.sendcmd('MDTM ' + FTP_file)
+            # successful response: '213 20120222090254'
+            ftp.quit()
+            break
+        except (Exception, IOError, socket.error, socket.timeout), e:
+            logging.error(
+                'ftpReconnect.ftp_get_modify_date(\'{3}\'): except: {0}, iter {1} out of {2}'.format(e.message, i, try_count, url))
+            time.sleep(60)
+            i = i + 1
 
     from datetime import datetime
     return modifiedTime[4:8] + '-' + modifiedTime[8:10] + '-' + modifiedTime[10:12]
@@ -425,7 +415,7 @@ def ftpDownload(url, dest, mask='', mask2='', mim_size=26214400, chunk_size=1048
 
                 obj = PyFTPclient(FTP_host, FTP_port, FTP_login, FTP_password, logging_level=logging_level)
                 obj.setCwd(FTP_cwd_full)
-                obj.setBlockSize(8192 * 32)
+                obj.setBlockSize(8192)
                 obj.setFileName(FTP_file)
                 obj.setLocalName(dest_file + ".%.3d" % i)
                 obj.setChunkStart(FTP_chunk_size * i)
